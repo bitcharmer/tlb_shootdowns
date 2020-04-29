@@ -1,13 +1,21 @@
 #! /usr/bin/env stap
 
+
+
 probe kernel.trace("ipi:ipi_entry") {
-    if (cpu() == 23) {
-        printf("IPI: %s\n", "aaa")
+    if (cpu() == 22 || cpu() == 23) {
+        printf("Entry: %s\n", "aaa")
     }
 }
 
-probe kernel.trace("sched:sched_switch") {
-    if (cpu() == 23) {
-        printf("SCHED: %s\n", "aaa")
+probe kernel.trace("ipi:ipi_exit") {
+    if (cpu() == 22 || cpu() == 23) {
+        printf("Exit: %s\n", "bbb")
     }
+}
+
+probe kernel.trace("tlb:tlb_flush") {
+  if (cpu() == 23) {
+      printf("TLB reason: %u, pages: %u\n", $reason, $pages)
+  }
 }

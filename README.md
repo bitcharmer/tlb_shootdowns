@@ -17,23 +17,32 @@ It's really well captured in the original documentation:
 Regardless of the method in which your program acquired memory there is a side effect of freeing/reclaiming it.
 So what exactly is that side effect?
 
+
 ## The theory
 
-Due to the mechanics of handling memory loads and stores in modern hardware and the supporting physical design of most contemporary CPUs thread t0 running on cpu0 will disrupt thread t1 running on cpu1 solely by the virtue of the two executing in the same VAS.
-In simpler terms - within the same program threads can screw with other threads by freeing memory those other threads aren't even using.  
+Due to the mechanics of handling memory loads and stores in modern hardware and the supporting physical design of most contemporary CPUs, threads running in the same [VAS](https://en.wikipedia.org/wiki/Virtual_address_space) will negatively impact one another just by deallocating memory.  
+In formal terms: for a single program P its thread T<sub>0</sub> running on CPU<sub>0</sub> is expected to disrupt P's thread T<sub>1</sub> running on CPU<sub>1</sub> solely by sharing the same address space.  
+In my terms - within the same program, threads can screw with other threads by freeing memory those other threads aren't even using.  
+You can probably guess how some react to a seemingly ludicrous statement like this.
 
-![alt text](https://tenor.com/view/dr-evil-right-gif-9743588 "")
+![alt text](img/tenor.gif "")  
+I don't blame them; the first time around  that was my reaction too.
 
+In order to understand the phenomenon we have to explore the anatomy of a few crucial components and their mutual interactions.
+I'll assume we all know what virtual memory is as a concept and start from here.  
+When the CPU executes an instruction that accesses some part of memory, the address point to a virtual and not physical address.
+This virtual address has to be translated to the physical address; this means that there has to be some mapping maintained that when given a virtual address returns a corresponding physical address.
+Such mapping is called the [page table](https://en.wikipedia.org/wiki/Page_table).  
+Nowadays these structures are quite complex with up to [5 levels](https://en.wikipedia.org/wiki/Intel_5-level_paging) from [Intel's Icelake](https://en.wikipedia.org/wiki/Ice_Lake_(microprocessor\)) onwards.
+Here's some [nice read](https://lwn.net/Articles/717293/) on how this support came to be in Linux and how stuff works at this level of complexity.
 
-[logo]: https://tenor.com/view/dr-evil-right-gif-9743588  
- 
-In order to understand the anatomy of this side effect
 
 What is TLB
 TLB stands for [Translation lookaside buffer](https://en.wikipedia.org/wiki/Translation_lookaside_buffer). It's a piece of hardware
 
-* cries in assembly *
 
+* cries in assembly *
+* totally makes sense if you don't think about it
 
 Memes:
 https://i.imgur.com/YcBvLG4.gifv
