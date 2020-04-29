@@ -1,0 +1,13 @@
+#! /usr/bin/env stap
+
+probe kernel.trace("ipi:ipi_entry") {
+    if (cpu() == 23) {
+        printf("IPI: %s\n", "aaa")
+    }
+}
+
+probe kernel.trace("sched:sched_switch") {
+    if (cpu() == 23) {
+        printf("SCHED: %s\n", "aaa")
+    }
+}
