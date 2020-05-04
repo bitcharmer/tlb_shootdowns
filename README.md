@@ -29,12 +29,14 @@ You can probably guess how some react to a seemingly ludicrous statement like th
 I don't blame them; the first time around  that was my reaction too.
 
 In order to understand the phenomenon we have to explore the anatomy of a few crucial components and their mutual interactions.
-I'll assume we all know what virtual memory is as a concept and start from here.  
-When the CPU executes an instruction that accesses some part of memory, the address point to a virtual and not physical address.
+I'll assume we all know what virtual memory is as a concept and start from here.
+  
+When the CPU executes an instruction that accesses some part of memory, the address points to a virtual and not physical address.
 This virtual address has to be translated to the physical address; this means that there has to be some mapping maintained that when given a virtual address returns a corresponding physical address.
 Such mapping is called the [page table](https://en.wikipedia.org/wiki/Page_table).  
 Nowadays these structures are quite complex with up to [5 levels](https://en.wikipedia.org/wiki/Intel_5-level_paging) from [Intel's Icelake](https://en.wikipedia.org/wiki/Ice_Lake_(microprocessor\)) onwards.
 Here's some [nice read](https://lwn.net/Articles/717293/) on how this support came to be in Linux and how stuff works at this level of complexity.
+
 
 
 What is TLB
