@@ -36,14 +36,14 @@ I'll assume we all know what [virtual memory](https://en.wikipedia.org/wiki/Virt
 When the CPU executes an instruction that accesses some part of memory, the address points to a virtual and not physical address.
 This virtual address has to be translated to the physical address; this means that there has to be some mapping maintained that when given a virtual address returns a corresponding physical address.
 Such mapping is maintained in the [page table](https://en.wikipedia.org/wiki/Page_table).  
-Nowadays these structures are quite complex with up to [5 levels](https://en.wikipedia.org/wiki/Intel_5-level_paging) from [Intel's Icelake](https://en.wikipedia.org/wiki/Ice_Lake_(microprocessor\)) onwards.
+Nowadays these structures are quite complex with up to [5 levels](https://en.wikipedia.org/wiki/Intel_5-level_paging) from [Intel's Icelake](https://en.wikipedia.org/wiki/Ice_Lake_(microprocessor)) onwards.
 Here's some [nice read](https://lwn.net/Articles/717293/) on how this support came to be in Linux and how stuff works at this level of complexity.
 Now, because this mapping has to be performed for each and every memory access the process of going to the page table, finding corresponding level 1 entry and following deeper into levels 4 or 5 seems like a lot of work for every (not only) _mov_ instruction.
 There's a lot of pointer chasing involved so such overhead would degrade our computers' performance by orders of magnitude.  
 
 So why don't we see this happening? Enter the [TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer).
 
-Just like CPU caches data residint in memory, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page tables every single time CPU needs to do anything.
+Just like CPU caches data residing in memory, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page tables every single time CPU needs to do anything.
 Nowadays, on x86 there are separate TLBs for data (dTLB) and instructions (iTLB). What's more - just like CPU caches - they are divided into access levels.
 For example Intel's Xeon E5-2689 v4 [has 5 TLB caches](http://www.cpu-world.com/CPUs/Xeon/Intel-Xeon%20E5-2689.html):
 * Data TLB0: 2-MB or 4-MB pages, 4-way set associative, 32 entries
