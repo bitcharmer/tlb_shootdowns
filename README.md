@@ -43,7 +43,7 @@ There's a lot of pointer chasing involved so such overhead would degrade our com
 
 So why don't we see this happening? Enter the [TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer).
 
-Just like CPU caches data residing in memory, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page tables every single time CPU needs to do anything.
+Just like CPU caches data residing in memory, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page tables every single time the CPU needs to do anything (btw, this process is called page walk).
 Nowadays, on x86 there are separate TLBs for data (dTLB) and instructions (iTLB). What's more - just like CPU caches - they are divided into access levels.
 For example Intel's Xeon E5-2689 v4 [has 5 TLB caches](http://www.cpu-world.com/CPUs/Xeon/Intel-Xeon%20E5-2689.html):
 * Data TLB0: 2-MB or 4-MB pages, 4-way set associative, 32 entries
@@ -77,14 +77,14 @@ To put the impact of TLB-assisted address translation in numbers:
 
 Now that we know everything about TLBs it's time to describe what a TLB shootdown is and how we can measure its impact.
 We know that TLB is essentially a cache of page table entries and a very small one at that (at least compared to CPU caches). This means we have to be very careful not to mess with it too much or else we'll have to pay the price of TLB misses.
-One such case is a full context switch when a CPU is about to execute code in an entirely different virtual address space. Depending on CPU model this will result in a "legacy" TLB flush with [_invlpg_](https://www.felixcloutier.com/x86/invlpg) instruction (ouch!) or partial entry invalidations, depending on the availability of CPU's _PCID_ feature ([_INVPCID_](https://www.felixcloutier.com/x86/invpcid)). If I'm not mistaken, it's been available from around Sandy Bridge onward.     
+One such case is a full context switch when a CPU is about to execute code in an entirely different virtual address space. Depending on CPU model this will result in a "legacy" TLB flush with [_invlpg_](https://www.felixcloutier.com/x86/invlpg) instruction (ouch!) or partial entry invalidations, if you're lucky enough to have a CPU sporting that sexy _PCID_ feature ([_INVPCID_](https://www.felixcloutier.com/x86/invpcid)). If I'm not mistaken, it's been available from around Sandy Bridge onward.     
 But that case is easy to understand, follow and even trace. A TLB-shootdown is much more subtle and often comes from the hand of a backstabbing thread from our own process.
 
 Imagine a process with two threads running on two separate CPUs. They both allocate some memory to work with (let's call it chunk A). They later decide to allocate some more memory (chunk B). Eventually they only work on chunk B and don't need chunk A any more so one of the threads calls _free()_ to release unused memory back to the OS.
 What needs to happen now is that the CPU which executed the _free()_ call has perfect information about valid mappings because it flushed outdated entries in its own TLB. But what about the other CPU running the other thread of the same process?
 How does it know that some virtual-to-physical mappings are not legal any more? We mustn't let it access addresses that map to physical memory that has been freed and can now belong to some completely different process, can we? I mean, that would be really bad memory coherency :)  
 
-This is where we finally get to meet Mr TLB-shootdown. 
+This is where we finally get to meet Mr TLB-shootdown in person. 
 It goes more or less like this. Thread A calls _free()_ which eventually propagates to the OS which knows which other CPUs are currently running threads that might access the memory area that's about to get freed. It raises an [IPI (inter-processor interrupt)](https://en.wikipedia.org/wiki/Inter-processor_interrupt) that targets that specific CPU to tell it to pause whatever it's doing now and first invalidate some virtual-to-physical mappings before resuming work.
 Note: IPIs are also used to implement other functionality like signaling timer events or rescheduling tasks.
 
