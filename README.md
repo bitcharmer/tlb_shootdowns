@@ -16,8 +16,8 @@ It's really well captured in the original documentation:
 
 > Normally, malloc() allocates memory from the heap, and adjusts the size of the heap as required, using sbrk(2). When allocating blocks of memory larger than MMAP_THRESHOLD bytes, the glibc malloc() implementation allocates the memory as a private anonymous mapping using mmap(2). MMAP_THRESHOLD is 128 kB by default, but is adjustable using mallopt(3). Allocations performed using mmap(2) are unaffected by the RLIMIT_DATA resource limit (see getrlimit(2)).
 
-Regardless of the method in which your program acquired memory there are side effects of freeing/reclaiming it.
-This post focuses on the impact of so called TLB-shootdowns.
+Regardless of the method by which your program acquired memory there are side effects of freeing/reclaiming it.
+This post focuses on the impact of so called **TLB-shootdowns**.
 
 
 ## The theory
