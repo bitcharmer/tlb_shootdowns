@@ -1,6 +1,6 @@
 ## The problem
 
-Every once in a while I involuntarily get involved in heated debates about if reusing memory is better than freeing it.  
+Every once in a while I involuntarily get involved in heated debates about if reusing memory is better for performance than freeing it.  
 **TLDR**: it is. If you want to find out why read on.
 
 Now, I'm dumb; I'm not even close to Martin Thompson, Brendan Gregg or Herb Sutter types so I just uncritically accept whatever they have to say about pretty much anything, especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check what it actually is later.  
