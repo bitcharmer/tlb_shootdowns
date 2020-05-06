@@ -23,7 +23,7 @@ This post focuses on the impact of so called TLB-shootdowns.
 ## The theory
 
 Due to the mechanics of handling memory loads and stores in modern hardware and the supporting physical design of most contemporary CPUs, threads running in the same [VAS](https://en.wikipedia.org/wiki/Virtual_address_space) will negatively impact one another just by deallocating memory.  
-In formal terms: for a single program P its thread T<sub>0</sub> running on CPU<sub>0</sub> is expected to disrupt P's thread T<sub>1</sub> running on CPU<sub>1</sub> solely by sharing the same address space.  
+In formal terms: for a single program P its thread T<sub>0</sub> running on CPU<sub>0</sub> is expected to disrupt P's thread T<sub>1</sub> running on CPU<sub>1</sub> solely by the virtue of performing memory de-allocation within the same address space.  
 In my terms - within the same program, threads can screw with other threads by freeing memory those other threads aren't even using.  
 You can probably guess how some react to a seemingly ludicrous statement like this.
 
@@ -38,12 +38,12 @@ This virtual address has to be translated to the physical address; this means th
 Such mapping is maintained in the [page table](https://en.wikipedia.org/wiki/Page_table).  
 Nowadays these structures are quite complex with up to [5 levels](https://en.wikipedia.org/wiki/Intel_5-level_paging) from [Intel's Icelake](https://en.wikipedia.org/wiki/Ice_Lake_(microprocessor\)) onwards.
 Here's some [nice read](https://lwn.net/Articles/717293/) on how this support came to be in Linux and how stuff works at this level of complexity.
-Now, because this mapping has to be performed for each and every memory access the process of going to the page table, finding corresponding level 1 entry and following deeper into levels 4 or 5 seems like a lot of work for every (not only) mov instruction.
+Now, because this mapping has to be performed for each and every memory access the process of going to the page table, finding corresponding level 1 entry and following deeper into levels 4 or 5 seems like a lot of work for every (not only) _mov_ instruction.
 There's a lot of pointer chasing involved so such overhead would degrade our computers' performance by orders of magnitude.  
 
 So why don't we see this happening? Enter the [TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer).
 
-Just like CPU cache, TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page tables every single time CPU needs to do anything.
+Just like CPU caches data residint in memory, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page tables every single time CPU needs to do anything.
 Nowadays, on x86 there are separate TLBs for data (dTLB) and instructions (iTLB). What's more - just like CPU caches - they are divided into access levels.
 For example Intel's Xeon E5-2689 v4 [has 5 TLB caches](http://www.cpu-world.com/CPUs/Xeon/Intel-Xeon%20E5-2689.html):
 * Data TLB0: 2-MB or 4-MB pages, 4-way set associative, 32 entries
