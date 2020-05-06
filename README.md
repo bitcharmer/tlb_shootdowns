@@ -11,7 +11,7 @@ Because I'm not the sharpest tool in the shed I take longer to learn new things 
 I decided to steal someone else's code from stack overflow and find out for myself if reusing memory is more efficient than just freeing it and letting the allocator do its magic.
 Unfortunately there was nothing to steal except some academic discussions on the undesired side effects of freeing (unmapping) memory.
 
-The reason for associating free() with munmap() is that some allocations with malloc()/calloc() will not use sbrk() and fall back to mmap() under the hood (with corresponding munmap() to free memory).  
+Fun fact: the reason for associating _free()_ with _munmap()_ is that some allocations with _malloc()/calloc()_ will not use _sbrk()_ and fall back to _mmap()_ under the hood (with corresponding _munmap()_ to free memory).  
 It's really well captured in the original documentation:
 
 > Normally, malloc() allocates memory from the heap, and adjusts the size of the heap as required, using sbrk(2). When allocating blocks of memory larger than MMAP_THRESHOLD bytes, the glibc malloc() implementation allocates the memory as a private anonymous mapping using mmap(2). MMAP_THRESHOLD is 128 kB by default, but is adjustable using mallopt(3). Allocations performed using mmap(2) are unaffected by the RLIMIT_DATA resource limit (see getrlimit(2)).
