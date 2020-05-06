@@ -3,12 +3,12 @@
 Every once in a while I involuntarily get involved in heated debates about whether reusing memory is better for performance than freeing it.  
 **TLDR**: it is. If you want to find out why read on.
 
-Now, I'm dumb; I'm not even close to Martin Thompson, Brendan Gregg or Herb Sutter types so I just uncritically accept whatever they have to say about pretty much anything, especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check what it actually is later.  
-But this time "because Martin says so" wasn't good enough for my peers as if they actually knew I had no idea what I was talking about.
+Now, I'm dumb; I'm not even close to Martin Thompson, Brendan Gregg or Herb Sutter types so I just uncritically accept whatever they have to say about pretty much anything, especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check it out later.  
+But this time "because Martin says so" wasn't good enough argument for my peers as if they actually knew I had no idea what I was talking about.
 And so I was kind of forced onto this path of misery, doubt and self-loathing that some people call "doing research".
 
 Because I'm not the sharpest tool in the shed I take longer to learn new things and require working examples for everything. 
-I decided to steal someone else's code from stack overflow and find out for myself if reusing memory is more efficient than just freeing it and letting the allocator do its magic.
+I decided to steal someone else's code from Stack Overflow and find out for myself if reusing memory is more efficient than just freeing it and letting the allocator do its magic.
 Unfortunately there was nothing to steal except some academic discussions on the undesired side effects of freeing (unmapping) memory.
 
 Fun fact: the reason for associating _free()_ with _munmap()_ is that some allocations with _malloc()/calloc()_ will not use _sbrk()_ and fall back to _mmap()_ under the hood (with corresponding _munmap()_ to free memory).  
@@ -28,7 +28,7 @@ In my terms - within the same program, threads can screw with other threads by f
 You can probably guess how some react to a ludicrous statement like this.
 
 ![alt text](img/tenor.gif "")  
-I don't blame them; the first time around  that was my reaction too.
+I don't blame them; the first time around that was my reaction too.
 
 In order to understand the phenomenon we have to explore the anatomy of a few crucial components and their mutual interactions.
 I'll assume we all know what [virtual memory](https://en.wikipedia.org/wiki/Virtual_memory) is as a concept and start from here.
@@ -38,12 +38,12 @@ This virtual address has to be translated to the physical address; this means th
 Such mapping is maintained in the [page table](https://en.wikipedia.org/wiki/Page_table).  
 Nowadays these structures are quite complex with up to [5 levels](https://en.wikipedia.org/wiki/Intel_5-level_paging) from [Intel's Icelake](https://en.wikipedia.org/wiki/Ice_Lake_(microprocessor)) onwards.
 Here's some [nice read](https://lwn.net/Articles/717293/) on how this support came to be in Linux and how stuff works at this level of complexity.
-Now, because this mapping has to be performed for each and every memory access the process of going to the page table, finding corresponding level 1 entry and following deeper into levels 4 or 5 seems like a lot of work for every instruction that refers to a memory location. 
+Now, because this mapping has to be performed for each and every memory access the process of going to the page table, finding corresponding level 1 entry and following deeper into levels 4 or even 5 seems like a lot of work for every instruction that refers to a memory location. 
 There's a lot of pointer chasing involved so such overhead would degrade our computers' performance by orders of magnitude.  
 
 So why don't we see this happening? Enter the [TLB](https://en.wikipedia.org/wiki/Translation_lookaside_buffer).
 
-Just like CPU caches data residing in memory, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page tables every single time the CPU needs to do anything (btw, this process is called page walk).
+Just like CPU caches data residing in RAM, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page table every single time the CPU needs to do anything (btw, this process is called page walk).
 Nowadays, on x86 there are separate TLBs for data (dTLB) and instructions (iTLB). What's more - just like CPU caches - they are divided into access levels.
 For example Intel's Xeon E5-2689 v4 [has 5 TLB caches](http://www.cpu-world.com/CPUs/Xeon/Intel-Xeon%20E5-2689.html):
 * Data TLB0: 2-MB or 4-MB pages, 4-way set associative, 32 entries
@@ -59,7 +59,7 @@ To make things more interesting there are 4 types of CPU caches that interact wi
 * Virtually indexed, physically tagged (VIPT) caches use the virtual address for the index and the physical address in the tag. They are faster than PIPT because a cache line can be looked up in parallel with the TLB translation (with tag comparison delayed until the physical address is available). This type of cache can detect homonyms.
 * Physically indexed, virtually tagged (PIVT) caches. Not very useful these days (only MIPS R6000 had one).
 
-Most level-1 caches are virtually indexed nowadays, which allows a neat performance trick where the MMU's TLB lookup happens in parallel with fetching the data from the cache RAM.
+Most level-1 caches are virtually indexed nowadays, which allows a neat performance trick where the [MMU's](https://en.wikipedia.org/wiki/Memory_management_unit) TLB lookup happens in parallel with fetching the data from the cache RAM.
 Due to aliasing problem virtual indexing is not the best option for all cache levels. Aliasing overhead gets even bigger with the cache size. Because of that most level-2 and larger caches are physically indexed.
 
 So that clears things up, doesn't it?
@@ -73,7 +73,7 @@ Mind you, these show the world of hardware TLBs, however there are architectures
   
 To put the impact of TLB-assisted address translation in numbers: 
 - a hit takes 0.5 - 1 CPU cycle
-- a miss can take anywhere between 10 and even hundreds of CPU cycles. 
+- a miss can take anywhere between 10 to even hundreds of CPU cycles. 
 
 Now that we know everything about TLBs it's time to describe what a TLB shootdown is and how we can measure its impact.
 We know that TLB is essentially a cache of page table entries and a very small one at that (at least compared to CPU caches). This means we have to be very careful not to mess with it too much or else we'll have to pay the price of TLB misses.
@@ -82,10 +82,11 @@ But that case is easy to understand, follow and even trace. A TLB-shootdown is m
 
 Imagine a process with two threads running on two separate CPUs. They both allocate some memory to work with (let's call it chunk A). They later decide to allocate some more memory (chunk B). Eventually they only work on chunk B and don't need chunk A any more so one of the threads calls _free()_ to release unused memory back to the OS.
 What happens now is that the CPU which executed the _free()_ call has perfect information about valid mappings because it flushed outdated entries in its own TLB. But what about the other CPU running the other thread of the same process?
-How does it know that some virtual-to-physical mappings are not legal any more? We mustn't let it access addresses that map to physical memory that has been freed and can now belong to some completely different process, can we? I mean, that would be really bad memory coherency :)  
+How does it know that some virtual-to-physical mappings are not legal any more? We mustn't let it access addresses that map to physical memory that has been freed and can now belong to some completely different process, can we? I mean, that would be really bad memory coherency :)
 
+There is no such thing as [bus snooping](https://en.wikipedia.org/wiki/Bus_snooping) for TLBs so how do other CPUs in an SMP system know when and what to invalidate?
 This is where we finally get to meet Mr TLB-shootdown in person. 
-It goes more or less like this. Thread A calls _free()_ which eventually propagates to the OS which knows which other CPUs are currently running threads that might access the memory area that's about to get freed. The OS code raises an [IPI (inter-processor interrupt)](https://en.wikipedia.org/wiki/Inter-processor_interrupt) that targets that specific CPU to tell it to pause whatever it's doing now and first invalidate some virtual-to-physical mappings before resuming work.
+It goes more or less like this. Thread A calls _free()_ which eventually propagates to the OS which knows which other CPUs are currently running threads that might access the memory area that's about to get freed. The OS code raises an [IPI (inter-processor interrupt)](https://en.wikipedia.org/wiki/Inter-processor_interrupt) that targets those specific CPUs to tell them to pause whatever they're doing now and first invalidate some virtual-to-physical mappings before resuming work.
 Note: IPIs are also used to implement other functionality like signaling timer events or rescheduling tasks.
 
 In Linux kernel there's a really cool function called [smp_call_function_many](https://elixir.bootlin.com/linux/v4.15/source/kernel/smp.c#L403) which generally lets you call functions on other CPUs. So when the OS wants to tell a bunch of CPUs to immediately invalidate their TLBs it uses the _smp_call_function_many_ facility with appropriate CPU mask to invoke a dedicated function on each of the qualifying CPUs: [flush_tlb_func_remote](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L510). 
