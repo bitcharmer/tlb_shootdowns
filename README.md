@@ -25,7 +25,7 @@ This post focuses on the impact of so called **TLB-shootdowns**.
 Due to the mechanics of handling memory loads and stores in modern hardware and the supporting physical design of most contemporary CPUs, threads running in the same [VAS](https://en.wikipedia.org/wiki/Virtual_address_space) will negatively impact one another just by deallocating memory.  
 In formal terms: for a single program P its thread T<sub>0</sub> running on CPU<sub>0</sub> is expected to disrupt P's thread T<sub>1</sub> running on CPU<sub>1</sub> solely by the virtue of performing memory de-allocation within the same address space.  
 In my terms - within the same program, threads can screw with other threads by freeing memory those other threads aren't even using.  
-You can probably guess how some react to a seemingly ludicrous statement like this.
+You can probably guess how some react to a ludicrous statement like this.
 
 ![alt text](img/tenor.gif "")  
 I don't blame them; the first time around  that was my reaction too.
