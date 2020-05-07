@@ -17,6 +17,8 @@
 #include <zconf.h>
 #include <sys/io.h>
 #include <errno.h>
+#include <numa.h>
+
 
 #define WRITER_BATCH_SIZE_KB 16 // write into this much worth of pages and capture the time
 #define REPORT_STATS_EVERY_MB 1024 // every N megabytes we'll dump percentiles into our "time series"
@@ -147,6 +149,8 @@ void write_in_background(struct thread_args *args) {
     traverse_chunk(args->chunkA, NULL, args->count);
     puts("Victim finished populating chunk A. Switching to chunk B...");
 
+    traverse_chunk(args->chunkB, NULL, args->count);
+    traverse_chunk(args->chunkB, NULL, args->count);
     // loop infinitely over chunk B (record latency in the histogram)
     while(1) {
         traverse_chunk(args->chunkB, args->metrics, args->count);
@@ -156,7 +160,7 @@ void write_in_background(struct thread_args *args) {
 
 int main() {
     // pin the culprit thread to a dedicated isolated cpu
-    long long cpu = 1L << CULPRIT_CPU;
+    long long cpu = 1L << CULPRIT_CPU; // yup, deal with it
     sched_setaffinity(0, sizeof(cpu), (const cpu_set_t *) &cpu);
 
     // init stuff
@@ -166,10 +170,11 @@ int main() {
     // this is where we will store the latency of each batch. 10000 data items is totally arbitrary and this
     // will blow up if you keep it running too long or have super frequent stats reporting period
     struct stats *metrics = calloc(10000, sizeof(struct stats));
+    for (int i = 0; i < 10000; i++) metrics[i].timestamp = 0;
 
     puts("Allocating chunks...");
-    char* chunkA = malloc(ALLOC_SIZE);
-    char* chunkB = malloc(ALLOC_SIZE);
+    char* chunkA = numa_alloc_local(ALLOC_SIZE);
+    char* chunkB = numa_alloc_local(ALLOC_SIZE);
 
     // start the parallel victim thread
     pthread_t victim_thread;
@@ -182,10 +187,10 @@ int main() {
     // normally this would be referred to as 'sheer luck', however in my field we call this 'heuristics'
     sleep(2);
 
-    puts("Press enter to free chunkA...");
+    printf("Press enter to free chunkA...");
     getchar();
     long long int before = now();
-    free(chunkA);
+    numa_free(chunkA, ALLOC_SIZE);
     long long int after = now();
     sleep(1);
 
