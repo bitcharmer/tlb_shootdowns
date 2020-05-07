@@ -96,16 +96,37 @@ If our understanding is correct, we should see an execution stall on an unsuspec
 
 ## The reality
 
+First things first - we need a proof of concept program to provide hard evidence for our hypothesis.
+In the [Theory](#the-theory) section we devised a hypothetical test case with thread A backstabbing thread B with IPIs. Let's write [some code](https://github.com/bitcharmer/tlb_shootdowns/blob/master/src/main.c) then.
+At this point I feel like I need to make a strong statement about code quality, defensive programming, error checking and such.
+Look closely - you will find none of that in this program. I make a strong distinction between a production-quality code and experimental sandbox stuff that you just write to have fun or learn.
+If this code makes you uncomfortable, then by all means please feel free to submit a PR that makes it less savage and I will gladly merge it.  
+With this important announcement out of the way we can finally look at what it does:
+
+1. Pins the main thread to the CULPRIT_CPU
+2. Allocates  
+
+
+Disclaimer about low latency tuning
+
+
 First things first. We need to start with establishing whether this whole IPI magic actually takes place as predicted.  
 The reason why Windows sucks and Linux rocks is that to systems engineers like myself it's like the wünder waffe. It's got everything you can ever wish for and more.
 The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. Does it show that I'm drooling?
 
 ![alt text](img/sp.png "")   
 
-Brendan Gregg is the [god of Linux performance](http://www.brendangregg.com/); his site is an invaluable source of wisdom on the topic and you should definitely go and check it out.
-Out of the whole arsenal of available tools, for quick and dirty analysis I choose [Systemtap](https://sourceware.org/systemtap/wiki).     
+Brendan Gregg is the go to person when it comes to [Linux performance](http://www.brendangregg.com/); his site is an invaluable source of wisdom on the topic and you should definitely go and check it out.
+Out of the whole arsenal of available tools conveniently listed on his website, for quick and dirty analysis I often choose [Systemtap](https://sourceware.org/systemtap/wiki).     
+As the name suggests the tool taps into a well established and defined [trace points](https://www.kernel.org/doc/Documentation/trace/tracepoint-analysis.txt) in Linux kernel.
+To get the ones supported by your kernel just run:
+
+`stap -L 'kernel.trace("*")'`
 
 
 <multivariate nonlinear regression - easy peasy>
 <cries in assembly>
 <totally makes sense if you don't think about it>
+
+
+http://localhost:3000/d/5qBo4qqWk/tlb-shootdown-analysis?tab=queries&panelId=2&edit&fullscreen&orgId=1&from=1588866384074&to=1588866391387

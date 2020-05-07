@@ -21,10 +21,10 @@
 
 
 #define WRITER_BATCH_SIZE_KB 64 // write into this much worth of pages and capture the time
-#define REPORT_STATS_EVERY_MB 128 // every N megabytes we'll dump percentiles into our "time series"
+#define REPORT_STATS_EVERY_MB 32 // every N megabytes we'll dump percentiles into our "time series"
 
 #define PG_SIZE 4096L // only testing standard 4k pages
-#define ALLOC_SIZE 1L * 1024L * 1024L * 1024L // using 1 GB chunks
+#define ALLOC_SIZE 4L * 1024L * 1024L * 1024L // using 1 GB chunks
 
 #define CULPRIT_CPU 22 // cpu of the thread responsible for freeing chunk A (at some point)
 #define VICTIM_CPU 23 // cpu of the thread that is expected to be impacted by the thread that does free()
@@ -104,14 +104,8 @@ void traverse_chunk(char *addr, struct stats *metrics, int *count) {
     long long batches_done = 0;
     long long batch_size_bytes = WRITER_BATCH_SIZE_KB * 1024;
     long long pages_per_batch = batch_size_bytes / PG_SIZE;
-    long long next_report_bytes = 1024L * 1024L * REPORT_STATS_EVERY_MB;
-
-//    if (metrics != NULL) {
-//        printf("Batch size: %lli\n", batch_size_bytes);
-//        printf("Pages per batch: %lli\n", pages_per_batch);
-//        printf("Next report: %lli\n", next_report_bytes);
-//        printf("Alloc size: %lli\n", ALLOC_SIZE);
-//    }
+    long long report_interval_bytes = 1024L * 1024L * REPORT_STATS_EVERY_MB;
+    long long next_report_bytes = report_interval_bytes;
 
     while (offset + batch_size_bytes <= ALLOC_SIZE) {
         long long int start = now();
@@ -123,12 +117,10 @@ void traverse_chunk(char *addr, struct stats *metrics, int *count) {
             offset += PG_SIZE;
         }
 
-        // record duration of a batch in the histogram
+        // record duration of the batch in the histogram
         long long int finish = now();
         hdr_record_value(histo, (finish - start) / pages_per_batch);
         batches_done++;
-
-//        printf("Batches done = %lli, off = %lli, next_rep = %lli\n", batches_done, offset + PG_SIZE, next_report_bytes);
 
         // report results periodically and reset the histogram
         if (offset >= next_report_bytes && metrics != NULL) {
@@ -142,9 +134,8 @@ void traverse_chunk(char *addr, struct stats *metrics, int *count) {
             s->max = hdr_max(histo);
             (*count)++;
 
-//            printf("Batches done = %lli, p50 = %lli, p90 = %lli, p99 = %lli, max = %lli\n", batches_done, s->p50, s->p90, s->p99, s->max);
             hdr_reset(histo);
-            next_report_bytes += (1024L * 1024L * REPORT_STATS_EVERY_MB);
+            next_report_bytes += report_interval_bytes;
             batches_done = 0;
         }
     }
@@ -158,7 +149,10 @@ void write_in_background(struct thread_args *args) {
 
     // traverse chunkA to fill the TLB (don't record latency in the histogram)
     traverse_chunk(args->chunkA, NULL, args->count);
-    puts("Victim finished populating chunk A. Switching to chunk B...");
+
+    // do a single run for chunkB to pre-fault everything before we start measuring
+    traverse_chunk(args->chunkB, NULL, args->count);
+    puts("Victim finished warming up. Performing measured writes...");
 
     // loop infinitely over chunk B (record latency in the histogram)
     while(1) {
@@ -194,20 +188,20 @@ int main() {
 
     // hope and pray the writer thread traverses the entire chunkA and switches to chunkB by the time we exit the sleep and press enter
     // normally this would be referred to as 'sheer luck', however in my field we call this 'heuristics'
-    sleep(2);
+    sleep(4);
 
     printf("Press enter to free chunkA...");
     getchar();
     long long int before = now();
     numa_free(chunkA, ALLOC_SIZE);
     long long int after = now();
-    printf("FOOOO...\n");
     sleep(1);
 
     printf("Publishing %i data points to influx...\n", cnt);
     for (int i = 0; i < cnt; i++) {
         publish_stats(&metrics[i]);
     }
+
     // also publish the time of free() call and its return
     publish_marker(before, "before");
     publish_marker(after, "after");

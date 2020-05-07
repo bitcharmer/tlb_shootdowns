@@ -1,21 +1,42 @@
 #! /usr/bin/env stap
 
+global culprit_cpu, victim_cpu
 
-
-probe kernel.trace("ipi:ipi_entry") {
-    if (cpu() == 22 || cpu() == 23) {
-        printf("Entry: %s\n", "aaa")
-    }
-}
-
-probe kernel.trace("ipi:ipi_exit") {
-    if (cpu() == 22 || cpu() == 23) {
-        printf("Exit: %s\n", "bbb")
-    }
+probe begin {
+    culprit_cpu = strtol(@1, 10)
+    victim_cpu = strtol(@2, 10)
 }
 
 probe kernel.trace("tlb:tlb_flush") {
-  if (cpu() == 23) {
-      printf("TLB reason: %u, pages: %u\n", $reason, $pages)
+  if (cpu() == victim_cpu) {
+      printf("VICTIM: tlb flush, reason: %s\n", flush_reason($reason))
+  }
+}
+
+probe kernel.function("ipi_entering_ack_irq") {
+  if (cpu() == victim_cpu) {
+    printf("VICTIM: ipi enter\n")
+  }
+}
+
+probe kernel.function("native_send_call_func_single_ipi") {
+  if (cpu() == culprit_cpu) {
+    printf("CULPRIT: raising ipi\n")
+  }
+}
+
+function flush_reason(id) {
+  if (id == 0) {
+    return "TLB_FLUSH_ON_TASK_SWITCH"
+  } else if (id == 1) {
+    return "TLB_REMOTE_SHOOTDOWN"
+  } else if (id == 2) {
+    return "TLB_LOCAL_SHOOTDOWN"
+  } else if (id == 3) {
+    return "TLB_LOCAL_MM_SHOOTDOWN"
+  } else if (id == 4) {
+    return "TLB_REMOTE_SEND_IPI"
+  } else if (id == 5) {
+    return "NR_TLB_FLUSH_REASONS"
   }
 }
