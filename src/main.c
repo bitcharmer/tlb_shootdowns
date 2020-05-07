@@ -22,12 +22,13 @@
 #define REPORT_STATS_EVERY_MB 1024 // every N megabytes we'll dump percentiles into our "time series"
 
 #define PG_SIZE 4096L // only testing standard 4k pages
-#define MAP_SIZE 1L * 1024L * 1024L * 1024L // using 1 GB mappings
+#define ALLOC_SIZE 1L * 1024L * 1024L * 1024L // using 1 GB chunks
 
-#define MUNMAP_CPU 22 // cpu of the thread responsible for unmapping the first file asynchronously
-#define WRITER_CPU 23 // cpu of the thread that is expected to be impacted by MUNMAP thread
+#define CULPRIT_CPU 22 // cpu of the thread responsible for freeing chunk A (at some point)
+#define VICTIM_CPU 23 // cpu of the thread that is expected to be impacted by the thread that does free()
 
-#define INFLUX_BUF_SIZE 1500 // has to fit the default MTU
+#define INFLUX_BUF_SIZE 1500 // fit within default MTU
+
 int sockfd;
 char buf[INFLUX_BUF_SIZE];
 struct sockaddr_in serverAddr;
@@ -47,9 +48,9 @@ typedef struct stats {
 } stats;
 
 typedef struct thread_args {
-    void *addr1;
-    void *addr2;
-    void *data;
+    void *chunkA;
+    void *chunkB;
+    void *metrics;
     int *count;
     unsigned int target_cpu;
 } thread_args;
@@ -76,7 +77,7 @@ void publish_stats(struct stats* stats) {
     transmit();
 }
 
-void publish_mmap(long long ts, char* op_name) {
+void publish_marker(long long ts, char *op_name) {
     sprintf((char*) (buf), "tlb_test,op_name=%s foo=1 %llu\n", op_name, ts);
     transmit();
 }
@@ -94,48 +95,33 @@ void init_udp(char *host, char *port) {
 
 // ===================================================================
 
-
-// takes a file path, creates the file and mmaps it up to MAP_SIZE bytes
-void* create_mapping(const char *path) {
-    int fd = open(path, O_RDWR | O_CREAT, (mode_t) 0644);
-    lseek(fd, MAP_SIZE - 1, SEEK_SET);
-    write(fd, "", 1);
-
-    char *addr = mmap(NULL, MAP_SIZE, PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, fd, 0L);
-
-    // pre-fault every page
-    for (long idx = 0; idx < MAP_SIZE - 1; idx += PG_SIZE) *(addr + idx) = 0;
-
-    return addr;
-}
-
-// The writer thread runs this over and over again. The first pass is over the first mmaped file and
-// all the subsequent ones are over the second file
-void write_loop(char *addr, struct stats *data, int *count) {
+// The victim thread runs this over and over again. The first pass is over chunkA and all the
+// subsequent ones are over the chunkB
+void traverse_chunk(char *addr, struct stats *metrics, int *count) {
     long offset = 0;
     long batches_done = 0;
     int batch_size_bytes = WRITER_BATCH_SIZE_KB * 1024;
     long max_batches = batch_size_bytes / PG_SIZE;
     long next_report_bytes = offset + batch_size_bytes * REPORT_STATS_EVERY_MB;
 
-    while (offset + batch_size_bytes < MAP_SIZE) {
+    while (offset + batch_size_bytes < ALLOC_SIZE) {
         long long int start = now();
 
-        // perform some writes in a batch (one per page)
+        // perform some writes in a batch (one write per page)
         int i = 0;
         for (; i < max_batches; i++) {
             *(addr + offset) = 0xAA;
             offset += PG_SIZE;
         }
 
-        // record duration of a batch in the histo
+        // record duration of a batch in the histogram
         long long int finish = now();
         hdr_record_value(histo, (finish - start) / max_batches);
         batches_done++;
 
-        // report results periodically and reset the histo
-        if (offset >= next_report_bytes && data != NULL) {
-            struct stats *s = &data[*count];
+        // report results periodically and reset the histogram
+        if (offset >= next_report_bytes && metrics != NULL) {
+            struct stats *s = &metrics[*count];
             s->timestamp = now();
             s->mean = hdr_mean(histo);
             s->min = hdr_min(histo);
@@ -152,59 +138,64 @@ void write_loop(char *addr, struct stats *data, int *count) {
 }
 
 
-// writer thread function
+// victim thread function
 void write_in_background(struct thread_args *args) {
     long long cpu = 1UL << args->target_cpu;
     sched_setaffinity(0, sizeof(cpu), (const cpu_set_t *) &cpu);
 
-    // loop over the first mmapped file to fill in the TLB (don't record latency in the histo)
-    write_loop(args->addr1, NULL, args->count);
-    puts("Writer finished populating the first file. Switching to the second...");
+    // traverse chunkA to fill the TLB (don't record latency in the histogram)
+    traverse_chunk(args->chunkA, NULL, args->count);
+    puts("Victim finished populating chunk A. Switching to chunk B...");
 
-    // loop infinitely over the second mmapped file (record latency in the histo)
-    while(1) write_loop(args->addr2, args->data, args->count);
+    // loop infinitely over chunk B (record latency in the histogram)
+    while(1) {
+        traverse_chunk(args->chunkB, args->metrics, args->count);
+    }
 }
 
 
 int main() {
-    // pin the main thread to a dedicated isolated cpu
-    long long cpu = 1L << MUNMAP_CPU;
+    // pin the culprit thread to a dedicated isolated cpu
+    long long cpu = 1L << CULPRIT_CPU;
     sched_setaffinity(0, sizeof(cpu), (const cpu_set_t *) &cpu);
 
+    // init stuff
     hdr_init(1, INT64_C(3600000000), 3, &histo);
     init_udp("localhost", "8089");
-    // this is where we will store the latency of each batch
-    struct stats *data = calloc(10000, sizeof(struct stats));
 
-    // create, mmap and pre-fault the files
-    puts("Creating mappings...");
-    char* addr1 = create_mapping("/dev/shm/file01");
-    char* addr2 = create_mapping("/dev/shm/file02");
+    // this is where we will store the latency of each batch. 10000 data items is totally arbitrary and this
+    // will blow up if you keep it running too long or have super frequent stats reporting period
+    struct stats *metrics = calloc(10000, sizeof(struct stats));
 
-    // start the parallel writer
-    pthread_t writer_thread;
+    puts("Allocating chunks...");
+    char* chunkA = malloc(ALLOC_SIZE);
+    char* chunkB = malloc(ALLOC_SIZE);
+
+    // start the parallel victim thread
+    pthread_t victim_thread;
     int cnt = 0;
-    struct thread_args args = {.addr1 = addr1, .addr2 = addr2, .target_cpu = WRITER_CPU, .data = data, .count = &cnt};
-    pthread_create(&writer_thread, NULL, (void *(*)(void *)) write_in_background, &args);
-    puts("Spawned writer thread...");
+    struct thread_args args = {.chunkA = chunkA, .chunkB = chunkB, .target_cpu = VICTIM_CPU, .metrics = metrics, .count = &cnt};
+    pthread_create(&victim_thread, NULL, (void *(*)(void *)) write_in_background, &args);
+    puts("Spawned victim thread...");
 
-    sleep(2);
-    // hope and pray the writer thread traverses the entire file01 and switches to file02 by the time we exit the sleep and press enter
+    // hope and pray the writer thread traverses the entire chunkA and switches to chunkB by the time we exit the sleep and press enter
     // normally this would be referred to as 'sheer luck', however in my field we call this 'heuristics'
-    puts("Press enter to unmap the first file");
+    sleep(2);
+
+    puts("Press enter to free chunkA...");
     getchar();
     long long int before = now();
-    munmap(addr1, MAP_SIZE); // unmap the 1st file
+    free(chunkA);
     long long int after = now();
     sleep(1);
 
     printf("Publishing %i data points to influx...\n", cnt);
     for (int i = 0; i < cnt; i++) {
-        publish_stats(&data[i]);
+        publish_stats(&metrics[i]);
     }
-    // also publish the time of munmap() call and its return
-    publish_mmap(before, "before");
-    publish_mmap(after, "after");
+    // also publish the time of free() call and its return
+    publish_marker(before, "before");
+    publish_marker(after, "after");
 
     puts("Finished"); // tada!
 }
