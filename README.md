@@ -96,5 +96,17 @@ If our understanding is correct, we should see an execution stall on an unsuspec
 
 ## The reality
 
+First things first. We need to start with establishing whether this whole IPI magic actually takes place as predicted.  
+The reason why Windows sucks and Linux rocks is that to systems engineers like myself it's like the wünder waffe. It's got everything you can ever wish for and more.
+The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. Does it show that I'm drooling?
+
+![alt text](img/sp.png "")   
+
+Brendan Gregg is the [god of Linux performance](http://www.brendangregg.com/); his site is an invaluable source of wisdom on the topic and you should definitely go and check it out.
+Out of the whole arsenal of available tools, for quick and dirty analysis I choose [Systemtap](https://sourceware.org/systemtap/wiki).     
+
+
+multivariate nonlinear regression - easy peasy
+
 <cries in assembly>
 <totally makes sense if you don't think about it>

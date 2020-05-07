@@ -159,7 +159,7 @@ void write_in_background(struct thread_args *args) {
 
     // loop over the first mmapped file to fill in the TLB (don't record latency in the histo)
     write_loop(args->addr1, NULL, args->count);
-    puts("Finished writing into the first file. Switching to the second...");
+    puts("Writer finished populating the first file. Switching to the second...");
 
     // loop infinitely over the second mmapped file (record latency in the histo)
     while(1) write_loop(args->addr2, args->data, args->count);
@@ -189,8 +189,10 @@ int main() {
     puts("Spawned writer thread...");
 
     sleep(2);
-    // pray and hope the writer thread traverses the entire file01 and switches to file02
-    // by the time we exit the sleep :)
+    // hope and pray the writer thread traverses the entire file01 and switches to file02 by the time we exit the sleep and press enter
+    // normally this would be referred to as 'sheer luck', however in my field we call this 'heuristics'
+    puts("Press enter to unmap the first file");
+    getchar();
     long long int before = now();
     munmap(addr1, MAP_SIZE); // unmap the 1st file
     long long int after = now();
