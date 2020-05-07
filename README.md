@@ -130,7 +130,7 @@ Here's the setup I used:
 
 Also, I ran my tests on runlevel 3 where I have most services disabled. Additionally I decided to run the benchmark on NUMA node1 as node0 typically experiences noticeably more cache trashing:
 
-<img src="img/cpu_act_01.png" alt="CPU activity" width="200"/>
+<img src="img/cpu_act_01.png" alt="CPU activity" width="800"/>
 
 
 First things first. We need to start with establishing whether this whole IPI magic actually takes place as predicted.  
