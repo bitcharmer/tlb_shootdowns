@@ -3,8 +3,8 @@
 Every once in a while I involuntarily get involved in heated debates about whether reusing memory is better for performance than freeing it.  
 **TLDR**: it is. If you want to find out why read on.
 
-Now, I'm dumb; I'm not even close to Martin Thompson, Brendan Gregg or Herb Sutter types so I just uncritically accept whatever they have to say about pretty much anything, especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check it out later.  
-But this time "because Martin says so" wasn't good enough argument for my peers as if they actually knew I had no idea what I was talking about.
+Now, I'm not a performance wizard like Martin Thompson or Brendan Gregg so normally I just uncritically accept whatever they have to say about pretty much anything, especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check it out later.  
+This time my peers were totally unimpressed by my convoluted explanations and as if they actually knew I had no idea what I was talking about.
 And so I was kind of forced onto this path of misery, doubt and self-loathing that some people call "doing research".
 
 Because I'm not the sharpest tool in the shed I take longer to learn new things and require working examples for everything. 
@@ -19,16 +19,19 @@ It's really well captured in the original documentation:
 Regardless of the method by which your program acquired memory there are side effects of freeing/reclaiming it.
 This post focuses on the impact of so called **TLB-shootdowns**.
 
-
-## The theory
-
 Due to the mechanics of handling memory loads and stores in modern hardware and the supporting physical design of most contemporary CPUs, threads running in the same [VAS](https://en.wikipedia.org/wiki/Virtual_address_space) will negatively impact one another just by deallocating memory.  
-In formal terms: for a single program P its thread T<sub>0</sub> running on CPU<sub>0</sub> is expected to disrupt P's thread T<sub>1</sub> running on CPU<sub>1</sub> solely by the virtue of performing memory de-allocation within the same address space.  
-In my terms - within the same program, threads can screw with other threads by freeing memory those other threads aren't even using.  
+In formal terms: 
+> For a single program P its thread T<sub>0</sub> running on CPU<sub>0</sub> is expected to disrupt P's thread T<sub>1</sub> running on CPU<sub>1</sub> solely by the virtue of performing memory de-allocation within the same address space.  
+
+In my terms: within the same program, threads can mess with other threads by freeing memory those other threads aren't even using.    
 You can probably guess how some react to a ludicrous statement like this.
 
 ![alt text](img/tenor.gif "")  
+  
 I don't blame them; the first time around that was my reaction too.
+
+## The theory
+
 
 In order to understand the phenomenon we have to explore the anatomy of a few crucial components and their mutual interactions.
 I'll assume we all know what [virtual memory](https://en.wikipedia.org/wiki/Virtual_memory) is as a concept and start from here.
@@ -241,7 +244,10 @@ Once we confirmed that indeed the culprit is a bad, bad thread we finally get to
 
 ![alt text](img/shootdown.png "")   
 
-<multivariate nonlinear regression - easy peasy>
+The vertical lines are markers for the exact time the culprit thread called _free()_ (blue - just before, purple - just after), 
+so this is just an extra confirmation that we're looking at the actual time frame of interest.  
+
+
 <cries in assembly>
 <totally makes sense if you don't think about it>
 
