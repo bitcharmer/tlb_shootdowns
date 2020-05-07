@@ -60,7 +60,7 @@ To make things more interesting there are 4 types of CPU caches that interact wi
 * Physically indexed, physically tagged (PIPT) caches use the physical address for both the index and the tag. While this is simple and avoids problems with aliasing, it is also slow, as the physical address must be looked up (which could involve a TLB miss and access to main memory) before that address can be looked up in the cache.
 * Virtually indexed, virtually tagged (VIVT) caches use the virtual address for both the index and the tag. This is a pretty dodgy scheme, not used broadly due to its problems with aliasing (multiple virtual addresses pointing to the same physical address) causing coherency challenges or homonyms where the same virtual address maps to several different physical addresses. 
 * Virtually indexed, physically tagged (VIPT) caches use the virtual address for the index and the physical address in the tag. They are faster than PIPT because a cache line can be looked up in parallel with the TLB translation (with tag comparison delayed until the physical address is available). This type of cache can detect homonyms.
-* Physically indexed, virtually tagged (PIVT) caches. Not very useful these days (only MIPS R6000 had one).
+* Physically indexed, virtually tagged (PIVT) caches. Not very useful these days (only [MIPS R6000](https://www.linux-mips.org/wiki/TLB) had one).
 
 Most level-1 caches are virtually indexed nowadays, which allows a neat performance trick where the [MMU's](https://en.wikipedia.org/wiki/Memory_management_unit) TLB lookup happens in parallel with fetching the data from the cache RAM.
 Due to aliasing problem virtual indexing is not the best option for all cache levels. Aliasing overhead gets even bigger with the cache size. Because of that most level-2 and larger caches are physically indexed.
@@ -72,16 +72,17 @@ So that clears things up, doesn't it?
 I struggled with these concepts for a while and highly recommend watching an [explanatory video](https://www.youtube.com/watch?v=95QpHJX55bM) that shows how TLB works for different cases (misses vs hits). [Another one](https://www.youtube.com/watch?v=uyrSn3qbZ8U&t=191s) focuses more on how employing TLB improves performance of memory accesses. 
 Although simplified I found these videos a great starting point if you would like to get a better understanding of this particular part of memory management on modern platforms.    
 
-Mind you, these show the world of hardware TLBs, however there are architectures that either entirely rely on TLB done in software (MIPS) or support software and hardware (SPARC v9).
+Mind you, these show the world of hardware TLBs, however there are architectures that either entirely rely on TLB done in software (MIPS) or support software and hardware (SPARC v9).  
+
+We know that TLB is essentially a cache of page table entries and a very small one at that (at least compared to CPU caches). This means we have to be very careful not to mess with it too much or else we'll have to pay the price of TLB misses.  
+One such case is a full context switch when a CPU is about to execute code in an entirely different virtual address space. Depending on CPU model this will result in a "legacy" TLB flush with [_invlpg_](https://www.felixcloutier.com/x86/invlpg) instruction (ouch!) or partial entry invalidations, if you're lucky enough to have a CPU sporting that sexy _PCID_ feature ([_INVPCID_](https://www.felixcloutier.com/x86/invpcid)). If I'm not mistaken, it's been available from around Sandy Bridge onward.     
+But that case is easy to understand, follow and even trace. A TLB-shootdown is much more subtle and often comes from the hand of a backstabbing thread from our own process.
   
 To put the impact of TLB-assisted address translation in numbers: 
 - a hit takes 0.5 - 1 CPU cycle
 - a miss can take anywhere between 10 to even hundreds of CPU cycles. 
 
 Now that we know everything about TLBs it's time to describe what a TLB shootdown is and how we can measure its impact.
-We know that TLB is essentially a cache of page table entries and a very small one at that (at least compared to CPU caches). This means we have to be very careful not to mess with it too much or else we'll have to pay the price of TLB misses.
-One such case is a full context switch when a CPU is about to execute code in an entirely different virtual address space. Depending on CPU model this will result in a "legacy" TLB flush with [_invlpg_](https://www.felixcloutier.com/x86/invlpg) instruction (ouch!) or partial entry invalidations, if you're lucky enough to have a CPU sporting that sexy _PCID_ feature ([_INVPCID_](https://www.felixcloutier.com/x86/invpcid)). If I'm not mistaken, it's been available from around Sandy Bridge onward.     
-But that case is easy to understand, follow and even trace. A TLB-shootdown is much more subtle and often comes from the hand of a backstabbing thread from our own process.
 
 Imagine a process with two threads running on two separate CPUs. They both allocate some memory to work with (let's call it chunk A). They later decide to allocate some more memory (chunk B). Eventually they only work on chunk B and don't need chunk A any more so one of the threads calls _free()_ to release unused memory back to the OS.
 What happens now is that the CPU which executed the _free()_ call has perfect information about valid mappings because it flushed outdated entries in its own TLB. But what about the other CPU running the other thread of the same process?
@@ -92,8 +93,11 @@ This is where we finally get to meet Mr TLB-shootdown in person.
 It goes more or less like this. Thread A calls _free()_ which eventually propagates to the OS which knows which other CPUs are currently running threads that might access the memory area that's about to get freed. The OS code raises an [IPI (inter-processor interrupt)](https://en.wikipedia.org/wiki/Inter-processor_interrupt) that targets those specific CPUs to tell them to pause whatever they're doing now and first invalidate some virtual-to-physical mappings before resuming work.
 Note: IPIs are also used to implement other functionality like signaling timer events or rescheduling tasks.
 
-In Linux kernel there's a really cool function called [smp_call_function_many](https://elixir.bootlin.com/linux/v4.15/source/kernel/smp.c#L403) which generally lets you call functions on other CPUs. So when the OS wants to tell a bunch of CPUs to immediately invalidate their TLBs it uses the _smp_call_function_many_ facility with appropriate CPU mask to invoke a dedicated function on each of the qualifying CPUs: [flush_tlb_func_remote](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L510). 
-It's all nicely encapsulated in [native_flush_tlb_others](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L520) function and I strongly recommend you have a look to get a better understanding of what is really going on when this happens. 
+In Linux kernel there's a really cool function called [smp_call_function_many](https://elixir.bootlin.com/linux/v4.15/source/kernel/smp.c#L403) which generally lets you call functions on other CPUs. 
+So when the OS wants to tell a bunch of CPUs to immediately invalidate their TLBs it uses the _smp_call_function_many_ facility with appropriate CPU mask to invoke a dedicated function on each of the 
+qualifying CPUs: [flush_tlb_func_remote](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L510). 
+It's all nicely encapsulated in [native_flush_tlb_others](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L520) 
+function and I strongly recommend you have a look to get a better understanding of what is really going on when this happens. 
 
 If our understanding is correct, we should see an execution stall on an unsuspecting thread that's doing its own thing when suddenly it gets hit with a giant IPI hammer. How do we even measure this?
 
@@ -117,7 +121,16 @@ With this important announcement out of the way we can finally look at what it d
 6. Waits a short while before dumping stats to influxdb
 7. Profit
 
-This is of course a simplified description of what's happening so if you want details, please have a look at the code. 
+This is of course a simplified description of what's happening so if you want details, please have a look at the code.
+
+
+There is only one external dependency in this code and that is [HDR Histogram](https://github.com/HdrHistogram/HdrHistogram_c). It's a brilliant piece of software that uses 
+unhealthy amounts of bit-twiddling magic and some hardcore maths to offer cheap, efficient and very low-overhead histogram implementation. 
+It also has extremely small memory footprint which matters here a lot as we can't afford to be compute or memory intensive. 
+Otherwise we'd have to deal with the observation introducing too much noise into the experiment.
+You have to clone and build it before you will be able to compile tlb_shootdowns binary.   
+
+  
 Important note - measuring performance of hardware caches is extremely difficult and super easy to get wrong. This is mostly due to the timescales (of nanoseconds) 
 and the subtle character of the impact this type of interactions make.
 For that reason this exercise only makes sense if performed on a reasonably tuned system. You will need to get rid of the major sources of jitter (at least from the culprit and victim cpus) such as:
@@ -239,13 +252,22 @@ Tuning the basic parameters for this test is like doing multivariate nonlinear r
 #define ALLOC_SIZE 4L * 1024L * 1024L * 1024L       // using 4 GB chunks
 ```
 
-  
-Once we confirmed that indeed the culprit is a bad, bad thread we finally get to see the actual impact:
+
+Once we confirmed that indeed the call to _free()_ on the culprit thread unleashes all this mess, we can finally look at the magnitude of the execution stall
+on the affected CPU: 
+
 
 ![alt text](img/shootdown.png "")   
 
 The vertical lines are markers for the exact time the culprit thread called _free()_ (blue - just before, purple - just after), 
 so this is just an extra confirmation that we're looking at the actual time frame of interest.  
+
+
+For most applications execution stalls like this don't matter much as they don't have strict performance requirements. 
+However for programs that are expected to operate in low- and ultra-low latency regime this may be a serious issue. 
+I've worked on quite a few systems that employed either pure in-mem buffers/arenas or used file-backed mapped memory.
+Large journal files may be a potential problem for operations and maintenance. Because of that there was always some pressure on unmapping and removing them.
+The resulting debates on the consequences of releasing memory were not uncommon; I hope this material gave you a better understanding of the nature of this issue.
 
 
 <cries in assembly>
