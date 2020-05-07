@@ -128,24 +128,37 @@ Here's the setup I used:
 
 `BOOT_IMAGE=/boot/vmlinuz-4.15.0-lowlatency root=UUID=5d18206d-fea3-44b0-bbc5-65274f690bc4 ro quiet splash vt.handoff=1 isolcpus=10,11,22,23 nohz_full=10,11,22,23 rcu_nocbs=10,11,22,23 noht nosoftlockup intel_idle.max_cstate=0 mce=ignore_ce rcu_nocb_poll audit=0 hpet=disable edd=off idle=poll processor.max_cstate=0 transparent_hugepage=never intel_pstate=disable numa_balancing=disable tsc=reliable clocksource=tsc selinux=0 nmi_watchdog=0 cpuidle.off=1 skew_tick=1 acpi_irq_nobalance pcie_aspm=performance watchdog=0 nohalt hugepages=4096 nospectre_v1 nospectre_v2 spectre_v2=off nospec_store_bypass_disable nopti pti=off nvidia-drm.modeset=1`
 
-Also, I ran my tests on runlevel 3 where I have most services disabled. Additionally I decided to run the benchmark on NUMA node1 as node0 typically experiences noticeably more cache trashing:
+Also, I ran my tests on runlevel 3 where I have most services disabled. 
+Additionally I decided to run the benchmark on NUMA node1 as node0 typically experiences noticeably more activity and cache trashing:
 
 ![alt text](img/cpu_act_01.png "")  
 
 
-First things first. We need to start with establishing whether this whole IPI magic actually takes place as predicted.  
-The reason why Windows sucks and Linux rocks is that to systems engineers like myself it's like the wünder waffe. It's got everything you can ever wish for and more.
-The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. Does it show that I'm drooling?
-
-![alt text](img/sp.png "")   
+After setting up the environment we're finally ready to check if this whole IPI magic actually takes place as predicted.  
+The reason why Windows sucks and Linux rocks is that to systems engineers like myself it's like the Wünder Waffe. 
+It's got everything you can ever wish for and more.
+The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. 
+Does it show that I'm drooling?
 
 Brendan Gregg is the go to person when it comes to [Linux performance](http://www.brendangregg.com/); his site is an invaluable source of wisdom on the topic and you should definitely go and check it out.
 Out of the whole arsenal of available tools conveniently listed on his website, for quick and dirty analysis I often choose [Systemtap](https://sourceware.org/systemtap/wiki).     
-As the name suggests the tool taps into a well established and defined [trace points](https://www.kernel.org/doc/Documentation/trace/tracepoint-analysis.txt) in Linux kernel.
-To get the ones supported by your kernel just run:
+As the name suggests the tool taps into a well established and defined [trace points](https://www.kernel.org/doc/Documentation/trace/tracepoint-analysis.txt) in Linux kernel. 
+It can also hook into raw kernel functions and gain access to some of the function parameters or even global variables. 
+To get the list of trace points supported by your kernel just run:
 
 `stap -L 'kernel.trace("*")'`
 
+
+For the list of functions you can tap into:
+
+`sudo stap -L 'kernel.function("*")'`
+
+The latter won't work without sudo as it needs full access to `/proc/kallsyms`
+Before we start measuring things we need to confirm that the whole IPI nonsense does indeed happen. System is perfect for that.
+I wrote a [script](https://github.com/bitcharmer/tlb_shootdowns/blob/master/trace_ipi.stp) that does everything we need and spits out relevant details to stdout.
+So let's run it and then start our program and see what happens!
+
+  
 
 <multivariate nonlinear regression - easy peasy>
 <cries in assembly>
