@@ -1,5 +1,8 @@
 #! /usr/bin/env stap
 
+# You need to pass two numeric arguments when you run this script. 
+# The 1st one is the culprit CPU and the second one is the victim CPU
+
 global culprit_cpu, victim_cpu
 
 probe begin {

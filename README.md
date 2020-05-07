@@ -128,7 +128,7 @@ Here's the setup I used:
 
 `BOOT_IMAGE=/boot/vmlinuz-4.15.0-lowlatency root=UUID=5d18206d-fea3-44b0-bbc5-65274f690bc4 ro quiet splash vt.handoff=1 isolcpus=10,11,22,23 nohz_full=10,11,22,23 rcu_nocbs=10,11,22,23 noht nosoftlockup intel_idle.max_cstate=0 mce=ignore_ce rcu_nocb_poll audit=0 hpet=disable edd=off idle=poll processor.max_cstate=0 transparent_hugepage=never intel_pstate=disable numa_balancing=disable tsc=reliable clocksource=tsc selinux=0 nmi_watchdog=0 cpuidle.off=1 skew_tick=1 acpi_irq_nobalance pcie_aspm=performance watchdog=0 nohalt hugepages=4096 nospectre_v1 nospectre_v2 spectre_v2=off nospec_store_bypass_disable nopti pti=off nvidia-drm.modeset=1`
 
-Your kernel has to support nohz_full and rcu offloading. If you want to be able to hook into kernel functions, you will also need debug symbols. For clarity I dumped my .config in this repo as well. 
+Your kernel has to support nohz_full and rcu offloading. If you want to be able to hook into kernel functions, you will also need debug symbols. For clarity I dumped my [.config](https://github.com/bitcharmer/tlb_shootdowns/blob/master/.config) in this repo as well. 
 Also, I ran my tests on runlevel 3 where I have most services disabled. 
 Additionally I decided to run the benchmark on NUMA node1 as node0 typically experiences noticeably more activity and cache trashing:
 
@@ -136,6 +136,8 @@ Additionally I decided to run the benchmark on NUMA node1 as node0 typically exp
 
 
 After setting up the environment we're finally ready to check if this whole IPI magic actually takes place as predicted.  
+
+
 The reason why Windows sucks and Linux rocks is that to systems engineers like myself it's like the Wünder Waffe. 
 It's got everything you can ever wish for and more.
 The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. 
@@ -154,12 +156,59 @@ For the list of functions you can tap into:
 
 `sudo stap -L 'kernel.function("*")'`
 
-The latter won't work without sudo as it needs full access to `/proc/kallsyms`
-Before we start measuring things we need to confirm that the whole IPI nonsense does indeed happen. System is perfect for that.
+The latter won't work without sudo as it needs full access to `/proc/kallsyms`.
+Before we start measuring things we need to confirm that the whole IPI nonsense does indeed happen. Systemtap is perfect for that.
 I wrote a [script](https://github.com/bitcharmer/tlb_shootdowns/blob/master/trace_ipi.stp) that does everything we need and spits out relevant details to stdout.
 So let's run it and then start our program and see what happens!
 
-  
+```
+VICTIM: tlb flush, reason: TLB_FLUSH_ON_TASK_SWITCH
+VICTIM: tlb flush, reason: TLB_LOCAL_MM_SHOOTDOWN
+VICTIM: tlb flush, reason: TLB_LOCAL_MM_SHOOTDOWN
+VICTIM: ipi enter
+VICTIM: tlb flush, reason: TLB_FLUSH_ON_TASK_SWITCH
+VICTIM: tlb flush, reason: TLB_FLUSH_ON_TASK_SWITCH
+VICTIM: tlb flush, reason: TLB_LOCAL_MM_SHOOTDOWN
+VICTIM: tlb flush, reason: TLB_LOCAL_MM_SHOOTDOWN
+VICTIM: tlb flush, reason: TLB_LOCAL_MM_SHOOTDOWN
+```
+
+Ok, so far nothing exciting, these are all part of getting a new thread onto a CPU and totally expected. No sign of any traumatic interaction with the culprit thread.
+Then the culprit thread pauses waiting for user input before wreaking havoc:
+
+```
+./tlb_shootdowns                                                                                                                                                      Thu 07 May 2020 18:15:42 BST
+Allocating chunks...
+Spawned victim thread...
+Victim finished warming up. Performing measured writes...
+Press enter to free chunkA...
+```
+
+Hit Enter!
+
+```
+CULPRIT: raising ipi
+VICTIM: ipi enter
+VICTIM: tlb flush, reason: TLB_REMOTE_SHOOTDOWN
+CULPRIT: raising ipi
+VICTIM: ipi enter
+VICTIM: tlb flush, reason: TLB_REMOTE_SHOOTDOWN
+CULPRIT: raising ipi
+VICTIM: ipi enter
+VICTIM: tlb flush, reason: TLB_REMOTE_SHOOTDOWN
+CULPRIT: raising ipi
+VICTIM: ipi enter
+VICTIM: tlb flush, reason: TLB_REMOTE_SHOOTDOWN
+CULPRIT: raising ipi
+VICTIM: ipi enter
+VICTIM: tlb flush, reason: TLB_REMOTE_SHOOTDOWN
+CULPRIT: raising ipi
+VICTIM: ipi enter
+VICTIM: tlb flush, reason: TLB_REMOTE_SHOOTDOWN
+```
+
+Wow, this is what I call causing a mess. There's many more of those but this is more than enough to show that our assumptions were valid.
+
 
 <multivariate nonlinear regression - easy peasy>
 <cries in assembly>
