@@ -106,7 +106,6 @@ Brendan Gregg is the [god of Linux performance](http://www.brendangregg.com/); h
 Out of the whole arsenal of available tools, for quick and dirty analysis I choose [Systemtap](https://sourceware.org/systemtap/wiki).     
 
 
-multivariate nonlinear regression - easy peasy
-
+<multivariate nonlinear regression - easy peasy>
 <cries in assembly>
 <totally makes sense if you don't think about it>
