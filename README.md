@@ -128,8 +128,19 @@ Here's the setup I used:
 
 `BOOT_IMAGE=/boot/vmlinuz-4.15.0-lowlatency root=UUID=5d18206d-fea3-44b0-bbc5-65274f690bc4 ro quiet splash vt.handoff=1 isolcpus=10,11,22,23 nohz_full=10,11,22,23 rcu_nocbs=10,11,22,23 noht nosoftlockup intel_idle.max_cstate=0 mce=ignore_ce rcu_nocb_poll audit=0 hpet=disable edd=off idle=poll processor.max_cstate=0 transparent_hugepage=never intel_pstate=disable numa_balancing=disable tsc=reliable clocksource=tsc selinux=0 nmi_watchdog=0 cpuidle.off=1 skew_tick=1 acpi_irq_nobalance pcie_aspm=performance watchdog=0 nohalt hugepages=4096 nospectre_v1 nospectre_v2 spectre_v2=off nospec_store_bypass_disable nopti pti=off nvidia-drm.modeset=1`
 
-Your kernel has to support nohz_full and rcu offloading. If you want to be able to hook into kernel functions, you will also need debug symbols. For clarity I dumped my [.config](https://github.com/bitcharmer/tlb_shootdowns/blob/master/.config) in this repo as well. 
-Also, I ran my tests on runlevel 3 where I have most services disabled. 
+Your kernel has to support nohz_full and rcu offloading. If you want to be able to hook into kernel functions, you will also need debug symbols. For clarity I dumped my [.config](https://github.com/bitcharmer/tlb_shootdowns/blob/master/.config) in this repo as well.
+
+Here's more details on my setup:
+
+Component | Specs
+--- | ---
+CPU | 2 x Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz (24 hw threads total)
+Mobo | Asus Z10PE-D8 WS (dual socket)
+RAM | 4 x 16GB DDR4 @ 2133 MHz (0.5ns)
+Kernel | custom low-latency 4.15 kernel 
+
+ 
+Also, I ran my tests on runlevel 3 where I have most services disabled.   
 Additionally I decided to run the benchmark on NUMA node1 as node0 typically experiences noticeably more activity and cache trashing:
 
 ![alt text](img/cpu_act_01.png "")  
@@ -173,11 +184,11 @@ VICTIM: tlb flush, reason: TLB_LOCAL_MM_SHOOTDOWN
 VICTIM: tlb flush, reason: TLB_LOCAL_MM_SHOOTDOWN
 ```
 
-Ok, so far nothing exciting, these are all part of getting a new thread onto a CPU and totally expected. No sign of any traumatic interaction with the culprit thread.
-Then the culprit thread pauses waiting for user input before wreaking havoc:
+Ok, so far nothing exciting, these are all part of getting a new thread onto a CPU and giving it some memory; totally expected. No sign of any traumatic interaction with the culprit thread.
+Then the culprit thread pauses waiting for user input:
 
 ```
-./tlb_shootdowns                                                                                                                                                      Thu 07 May 2020 18:15:42 BST
+./tlb_shootdowns
 Allocating chunks...
 Spawned victim thread...
 Victim finished warming up. Performing measured writes...
@@ -208,7 +219,26 @@ VICTIM: tlb flush, reason: TLB_REMOTE_SHOOTDOWN
 ```
 
 Wow, this is what I call causing a mess. There's many more of those but this is more than enough to show that our assumptions were valid.
+BTW, you don't need to write and run a Systemtap script to check if a CPU of interest experienced any TLB-shootdowns. 
+You can monitor /proc/interrupts or use something more user-friendly like [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/) agent and plot awesome charts in [Grafana](https://grafana.com):
 
+![alt text](img/cpu_act_02.png "")
+
+With Systemtap however you get much more details and scripting capabilities.
+
+Before I get to the part everyone's been waiting for (if you're still here) I need to make another disclaimer. It's very easy to run benchmarks like this and not reach any definite conclusion. 
+This has to do with how fast your memory is, how much of it you have at your disposal, how fast your CPUs are and even how you decide to collect, process and present the data.
+Some of my test runs gave less pronounced results at higher level of background noise, some were better.
+Tuning the basic parameters for this test is like doing multivariate nonlinear regression - easy and totally not frustrating. In my case the following combination performed well:
+
+```
+#define WRITER_BATCH_SIZE_KB 64                     // write into this much worth of pages and capture the time
+#define REPORT_STATS_EVERY_MB 32                    // every N megabytes we'll dump percentiles into our "time series"
+#define ALLOC_SIZE 4L * 1024L * 1024L * 1024L       // using 4 GB chunks
+```
+
+  
+Once we confirmed that indeed the culprit is a bad, bad thread we finally get to see the actual impact.   
 
 <multivariate nonlinear regression - easy peasy>
 <cries in assembly>
