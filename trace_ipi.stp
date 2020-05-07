@@ -25,6 +25,7 @@ probe kernel.function("native_send_call_func_single_ipi") {
   }
 }
 
+// from: https://elixir.bootlin.com/linux/latest/source/include/linux/mm_types.h#L745
 function flush_reason(id) {
   if (id == 0) {
     return "TLB_FLUSH_ON_TASK_SWITCH"

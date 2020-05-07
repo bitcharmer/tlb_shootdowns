@@ -104,10 +104,33 @@ If this code makes you uncomfortable, then by all means please feel free to subm
 With this important announcement out of the way we can finally look at what it does:
 
 1. Pins the main thread to the CULPRIT_CPU
-2. Allocates  
+2. Allocates chunkA and chunkB on local NUMA node
+3. Spawns the victim thread, which:
+    a. pins itself to VICTIM_CPU
+    b. traverses chunkA once to fill the TLB
+    c. switches to chunkB and starts looping over it indefinitely while capturing latency of touching pages (in batches)
+4. Culprit thread waits for user input
+5. After receiving input culprit thread frees chunkA
+6. Waits a short while before dumping stats to influxdb
+7. Profit
 
+This is of course a simplified description of what's happening so if you want details, please have a look at the code. 
+Important note - measuring performance of hardware caches is extremely difficult and super easy to get wrong. This is mostly due to the timescales (of nanoseconds) 
+and the subtle character of the impact this type of interactions make.
+For that reason this exercise only makes sense if performed on a reasonably tuned system. You will need to get rid of the major sources of jitter (at least from the culprit and victim cpus) such as:
+- other user space threads
+- kernel threads (rcu, workqueues, tasklets)
+- irqs
+- vm.stat_interval, any sources of sysfs or debugfs pressure
 
-Disclaimer about low latency tuning
+On top of the above you will need to make sure you mitigate other factors that have potential to introduce too much variance like rcu storms, timer tick waves, switching c-states and p-states, watchdogs, audits, mce, etc.
+Here's the setup I used:
+
+`BOOT_IMAGE=/boot/vmlinuz-4.15.0-lowlatency root=UUID=5d18206d-fea3-44b0-bbc5-65274f690bc4 ro quiet splash vt.handoff=1 isolcpus=10,11,22,23 nohz_full=10,11,22,23 rcu_nocbs=10,11,22,23 noht nosoftlockup intel_idle.max_cstate=0 mce=ignore_ce rcu_nocb_poll audit=0 hpet=disable edd=off idle=poll processor.max_cstate=0 transparent_hugepage=never intel_pstate=disable numa_balancing=disable tsc=reliable clocksource=tsc selinux=0 nmi_watchdog=0 cpuidle.off=1 skew_tick=1 acpi_irq_nobalance pcie_aspm=performance watchdog=0 nohalt hugepages=4096 nospectre_v1 nospectre_v2 spectre_v2=off nospec_store_bypass_disable nopti pti=off nvidia-drm.modeset=1`
+
+Also, I ran my tests on runlevel 3 where I have most services disabled. Additionally I decided to run the benchmark on NUMA node1 as node0 typically experiences noticeably more cache trashing:
+
+<img src="img/cpu_act_01.png" alt="CPU activity" width="200"/>
 
 
 First things first. We need to start with establishing whether this whole IPI magic actually takes place as predicted.  
