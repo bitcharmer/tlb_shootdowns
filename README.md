@@ -140,14 +140,13 @@ RAM | 4 x 16GB DDR4 @ 2133 MHz (0.5ns)
 Kernel | custom low-latency 4.15 kernel 
 
  
-Also, I ran my tests on runlevel 3 where I have most services disabled.   
-Additionally I decided to run the benchmark on NUMA node1 as node0 typically experiences noticeably more activity and cache trashing:
+I ran my tests on runlevel 3 where I have most services disabled.   
+Additionally, it made more sense to run the benchmark on NUMA node1 as node0 typically experiences noticeably more activity and cache trashing:
 
 ![alt text](img/cpu_act_01.png "")  
 
 
 After setting up the environment we're finally ready to check if this whole IPI magic actually takes place as predicted.  
-
 
 The reason why Windows sucks and Linux rocks is that to systems engineers like myself it's like the Wünder Waffe. 
 It's got everything you can ever wish for and more.
@@ -238,7 +237,9 @@ Tuning the basic parameters for this test is like doing multivariate nonlinear r
 ```
 
   
-Once we confirmed that indeed the culprit is a bad, bad thread we finally get to see the actual impact.   
+Once we confirmed that indeed the culprit is a bad, bad thread we finally get to see the actual impact:
+
+![alt text](img/shootdown.png "")   
 
 <multivariate nonlinear regression - easy peasy>
 <cries in assembly>
