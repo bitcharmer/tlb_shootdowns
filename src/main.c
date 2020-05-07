@@ -20,8 +20,8 @@
 #include <numa.h>
 
 
-#define WRITER_BATCH_SIZE_KB 16 // write into this much worth of pages and capture the time
-#define REPORT_STATS_EVERY_MB 1024 // every N megabytes we'll dump percentiles into our "time series"
+#define WRITER_BATCH_SIZE_KB 64 // write into this much worth of pages and capture the time
+#define REPORT_STATS_EVERY_MB 128 // every N megabytes we'll dump percentiles into our "time series"
 
 #define PG_SIZE 4096L // only testing standard 4k pages
 #define ALLOC_SIZE 1L * 1024L * 1024L * 1024L // using 1 GB chunks
@@ -100,26 +100,35 @@ void init_udp(char *host, char *port) {
 // The victim thread runs this over and over again. The first pass is over chunkA and all the
 // subsequent ones are over the chunkB
 void traverse_chunk(char *addr, struct stats *metrics, int *count) {
-    long offset = 0;
-    long batches_done = 0;
-    int batch_size_bytes = WRITER_BATCH_SIZE_KB * 1024;
-    long max_batches = batch_size_bytes / PG_SIZE;
-    long next_report_bytes = offset + batch_size_bytes * REPORT_STATS_EVERY_MB;
+    long long offset = 0;
+    long long batches_done = 0;
+    long long batch_size_bytes = WRITER_BATCH_SIZE_KB * 1024;
+    long long pages_per_batch = batch_size_bytes / PG_SIZE;
+    long long next_report_bytes = 1024L * 1024L * REPORT_STATS_EVERY_MB;
 
-    while (offset + batch_size_bytes < ALLOC_SIZE) {
+//    if (metrics != NULL) {
+//        printf("Batch size: %lli\n", batch_size_bytes);
+//        printf("Pages per batch: %lli\n", pages_per_batch);
+//        printf("Next report: %lli\n", next_report_bytes);
+//        printf("Alloc size: %lli\n", ALLOC_SIZE);
+//    }
+
+    while (offset + batch_size_bytes <= ALLOC_SIZE) {
         long long int start = now();
 
         // perform some writes in a batch (one write per page)
         int i = 0;
-        for (; i < max_batches; i++) {
+        for (; i < pages_per_batch; i++) {
             *(addr + offset) = 0xAA;
             offset += PG_SIZE;
         }
 
         // record duration of a batch in the histogram
         long long int finish = now();
-        hdr_record_value(histo, (finish - start) / max_batches);
+        hdr_record_value(histo, (finish - start) / pages_per_batch);
         batches_done++;
+
+//        printf("Batches done = %lli, off = %lli, next_rep = %lli\n", batches_done, offset + PG_SIZE, next_report_bytes);
 
         // report results periodically and reset the histogram
         if (offset >= next_report_bytes && metrics != NULL) {
@@ -133,8 +142,10 @@ void traverse_chunk(char *addr, struct stats *metrics, int *count) {
             s->max = hdr_max(histo);
             (*count)++;
 
+//            printf("Batches done = %lli, p50 = %lli, p90 = %lli, p99 = %lli, max = %lli\n", batches_done, s->p50, s->p90, s->p99, s->max);
             hdr_reset(histo);
-            next_report_bytes += batch_size_bytes * REPORT_STATS_EVERY_MB;
+            next_report_bytes += (1024L * 1024L * REPORT_STATS_EVERY_MB);
+            batches_done = 0;
         }
     }
 }
@@ -149,8 +160,6 @@ void write_in_background(struct thread_args *args) {
     traverse_chunk(args->chunkA, NULL, args->count);
     puts("Victim finished populating chunk A. Switching to chunk B...");
 
-    traverse_chunk(args->chunkB, NULL, args->count);
-    traverse_chunk(args->chunkB, NULL, args->count);
     // loop infinitely over chunk B (record latency in the histogram)
     while(1) {
         traverse_chunk(args->chunkB, args->metrics, args->count);
@@ -192,6 +201,7 @@ int main() {
     long long int before = now();
     numa_free(chunkA, ALLOC_SIZE);
     long long int after = now();
+    printf("FOOOO...\n");
     sleep(1);
 
     printf("Publishing %i data points to influx...\n", cnt);
