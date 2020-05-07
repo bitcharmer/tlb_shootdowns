@@ -270,6 +270,36 @@ Large journal files may be a potential problem for operations and maintenance. B
 The resulting debates on the consequences of releasing memory were not uncommon; I hope this material gave you a better understanding of the nature of this issue.
 
 
+## Bonus content
+
+For the inquisitive, here's how the interaction between the threads transpires.
+
+Culprit's backtrace:
+
+
+Address | Function
+--- | ---
+0xffffffff81055d10 | native_send_call_func_single_ipi+0x0/0x20 [kernel]
+0xffffffff8111f86f | generic_exec_single+0x5f/0xc0 [kernel]
+0xffffffff8111f9a2 | smp_call_function_single+0xd2/0x100 [kernel]
+0xffffffff8111fe3c | smp_call_function_many+0x1cc/0x250 [kernel]
+0xffffffff8107982c | native_flush_tlb_others+0x3c/0xf0 [kernel]
+0xffffffff8107998e | flush_tlb_mm_range+0xae/0x110 [kernel]
+0xffffffff81208a50 | tlb_flush_mmu_tlbonly+0x80/0xe0 [kernel]
+0xffffffff81209e1f | arch_tlb_finish_mmu+0x3f/0x80 [kernel]
+0xffffffff81209fd3 | tlb_finish_mmu+0x23/0x30 [kernel]
+0xffffffff81213c07 | unmap_region+0xf7/0x130 [kernel]
+0xffffffff81215d6c | do_munmap+0x27c/0x460 [kernel]
+0xffffffff81215fb9 | vm_munmap+0x69/0xb0 [kernel]
+0xffffffff81216022 | sys_munmap+0x22/0x30 [kernel]
+0xffffffff81003b34 | do_syscall_64+0x74/0x1b0 [kernel]
+0xffffffff81a00119 | return_from_SYSCALL_64+0x0/0x65 [kernel]
+0x0 | ring3 to ring0 transition (user- to kernel-space) 
+0x7f0853529ab7 | [munmap](https://elixir.bootlin.com/glibc/glibc-2.27/source/malloc/memusage.c#L749)+0x7/0x30 [/lib/x86_64-linux-gnu/libc-2.27.so]
+0x55e3788866dd | main+0x180/0x243 [/home/qdlt/devel/git/tlb_shootdowns/tlb_shootdowns]
+0x7f085342fb97 | __libc_start_main+0xe7/0x1c0 [/lib/x86_64-linux-gnu/libc-2.27.so]
+0x55e378885f6a | _start+0x2a/0x30 [/home/qdlt/devel/git/tlb_shootdowns/tlb_shootdowns]
+
 <cries in assembly>
 <totally makes sense if you don't think about it>
 
