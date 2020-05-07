@@ -106,9 +106,9 @@ With this important announcement out of the way we can finally look at what it d
 1. Pins the main thread to the CULPRIT_CPU
 2. Allocates chunkA and chunkB on local NUMA node
 3. Spawns the victim thread, which:
-    a. pins itself to VICTIM_CPU
-    b. traverses chunkA once to fill the TLB
-    c. switches to chunkB and starts looping over it indefinitely while capturing latency of touching pages (in batches)
+    1. pins itself to VICTIM_CPU
+    2. traverses chunkA once to fill the TLB
+    3. switches to chunkB and starts looping over it indefinitely while capturing latency of touching pages (in batches)
 4. Culprit thread waits for user input
 5. After receiving input culprit thread frees chunkA
 6. Waits a short while before dumping stats to influxdb
@@ -128,6 +128,7 @@ Here's the setup I used:
 
 `BOOT_IMAGE=/boot/vmlinuz-4.15.0-lowlatency root=UUID=5d18206d-fea3-44b0-bbc5-65274f690bc4 ro quiet splash vt.handoff=1 isolcpus=10,11,22,23 nohz_full=10,11,22,23 rcu_nocbs=10,11,22,23 noht nosoftlockup intel_idle.max_cstate=0 mce=ignore_ce rcu_nocb_poll audit=0 hpet=disable edd=off idle=poll processor.max_cstate=0 transparent_hugepage=never intel_pstate=disable numa_balancing=disable tsc=reliable clocksource=tsc selinux=0 nmi_watchdog=0 cpuidle.off=1 skew_tick=1 acpi_irq_nobalance pcie_aspm=performance watchdog=0 nohalt hugepages=4096 nospectre_v1 nospectre_v2 spectre_v2=off nospec_store_bypass_disable nopti pti=off nvidia-drm.modeset=1`
 
+Your kernel has to support nohz_full and rcu offloading. If you want to be able to hook into kernel functions, you will also need debug symbols. For clarity I dumped my .config in this repo as well. 
 Also, I ran my tests on runlevel 3 where I have most services disabled. 
 Additionally I decided to run the benchmark on NUMA node1 as node0 typically experiences noticeably more activity and cache trashing:
 
