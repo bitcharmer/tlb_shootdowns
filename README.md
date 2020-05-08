@@ -122,7 +122,7 @@ So when the OS wants to tell a bunch of CPUs to immediately invalidate their TLB
 qualifying CPUs: [flush_tlb_func_remote](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L510). 
 It's all nicely encapsulated in [native_flush_tlb_others](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L520) 
 function and I strongly recommend you have a look to get a better understanding of what is really going on when this happens.   
-You will find relevant backtraces of this process in th [Bonus content](#bonus-content) section.
+You will find relevant backtraces of this process in the [Bonus content](#bonus-content) section.
 
 If our understanding is correct, we should see an execution stall on an unsuspecting thread that's doing its own thing when suddenly it gets hit with a giant IPI hammer. How do we even measure this?
 
@@ -160,9 +160,9 @@ Important note - measuring performance of hardware caches is extremely difficult
 and the subtle character of the impact this type of interactions make.
 For that reason this exercise only makes sense if performed on a reasonably tuned system. You will need to get rid of the major sources of jitter (at least from the culprit and victim cpus) such as:
 - other user space threads (including [SMT](https://en.wikipedia.org/wiki/Simultaneous_multithreading))
-- kernel threads (rcu, workqueues, tasklets)
-- irqs
-- vm.stat_interval, any sources of sysfs or debugfs pressure
+- kernel threads ([RCU](https://lwn.net/Articles/262464/), [workqueues](https://kukuruku.co/post/multitasking-in-the-linux-kernel-workqueues/), [tasklets](https://0xax.gitbooks.io/linux-insides/content/Interrupts/linux-interrupts-9.html))
+- IRQs
+- any sources of sysfs or debugfs pressure, excessive accounting and reporting (vm.stat_interval, etc)
 
 On top of the above you will need to make sure you mitigate other factors that have potential to introduce too much variance like 
 irq balancing, rcu storms, timer tick waves, [switching c-states and p-states](https://software.intel.com/content/www/us/en/develop/articles/power-management-states-p-states-c-states-and-package-c-states.html), watchdogs, audits, [MCEs](https://en.wikipedia.org/wiki/Machine-check_exception), writeback activity, etc.
