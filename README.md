@@ -169,6 +169,10 @@ It's got everything you can ever wish for and more.
 The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. 
 Does it show that I'm drooling?
 
+
+![alt text](img/cable.png "")  
+
+
 Brendan Gregg is the go to person when it comes to [Linux performance](http://www.brendangregg.com/); his site is an invaluable source of wisdom on the topic and you should definitely go and check it out.
 Out of the whole arsenal of available tools conveniently listed on his website, for quick and dirty analysis I often choose [Systemtap](https://sourceware.org/systemtap/wiki).     
 As the name suggests the tool taps into a well established and defined [trace points](https://www.kernel.org/doc/Documentation/trace/tracepoint-analysis.txt) in Linux kernel. 
