@@ -319,10 +319,10 @@ In Systemtap you can print kernel backtrace with the internal [_print_backtrace(
 function and the user-space backtrace with [_print_ubacktrace()_](https://sourceware.org/systemtap/tapsets/API-print-ubacktrace.html)
 As easy as it seems, you will need to ensure that:
 * you're running a kernel with debug symbols
-* KASLR is disabled (you can run with nokaslr in cmdline)
+* [KASLR](https://lwn.net/Articles/569635/) is disabled (you can run with nokaslr in cmdline)
 * your binary was built with -fno-omit-frame-pointer and debug symbols
 * you run stap with --ldd and -d /path/to/your/binary-with-dbg-symbols
-* your Systemtap version supports DWARF stack unwinding (stap 3.3 and above should do the trick)
+* your Systemtap version supports stack unwinders that can handle compiled kernel and program stacks (stap 3.3 and above should do the trick for most setups)
 
 <cries in assembly>
 <totally makes sense if you don't think about it>
