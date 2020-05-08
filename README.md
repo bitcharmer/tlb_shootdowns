@@ -10,7 +10,7 @@ And so I was kind of forced onto this path of misery, doubt and self-loathing th
 
 Because I'm not the sharpest tool in the shed I take longer to learn new things and require working examples for everything. 
 I decided to steal someone else's code from Stack Overflow and find out for myself if reusing memory is more efficient than just freeing it and letting the allocator do its magic.
-Unfortunately there was nothing to steal except for some academic discussions on some side effects of freeing (unmapping) memory.
+Unfortunately there was nothing to steal except for academic discussions on some side effects of freeing (unmapping) memory.
 
 Fun fact: the reason for associating _free()_ with _munmap()_ is that some allocations with _malloc()/calloc()_ will not use _sbrk()_ and fall back to _mmap()_ under the hood (with corresponding _munmap()_ to free memory).  
 It's really well captured in the [original documentation](https://linux.die.net/man/3/malloc):
