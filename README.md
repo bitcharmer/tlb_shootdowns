@@ -279,26 +279,50 @@ Culprit's backtrace:
 
 Address | Function
 --- | ---
-0xffffffff81055d10 | native_send_call_func_single_ipi+0x0/0x20 [kernel]
-0xffffffff8111f86f | generic_exec_single+0x5f/0xc0 [kernel]
-0xffffffff8111f9a2 | smp_call_function_single+0xd2/0x100 [kernel]
-0xffffffff8111fe3c | smp_call_function_many+0x1cc/0x250 [kernel]
-0xffffffff8107982c | native_flush_tlb_others+0x3c/0xf0 [kernel]
-0xffffffff8107998e | flush_tlb_mm_range+0xae/0x110 [kernel]
-0xffffffff81208a50 | tlb_flush_mmu_tlbonly+0x80/0xe0 [kernel]
-0xffffffff81209e1f | arch_tlb_finish_mmu+0x3f/0x80 [kernel]
-0xffffffff81209fd3 | tlb_finish_mmu+0x23/0x30 [kernel]
-0xffffffff81213c07 | unmap_region+0xf7/0x130 [kernel]
-0xffffffff81215d6c | do_munmap+0x27c/0x460 [kernel]
-0xffffffff81215fb9 | vm_munmap+0x69/0xb0 [kernel]
-0xffffffff81216022 | sys_munmap+0x22/0x30 [kernel]
-0xffffffff81003b34 | do_syscall_64+0x74/0x1b0 [kernel]
-0xffffffff81a00119 | return_from_SYSCALL_64+0x0/0x65 [kernel]
+0xffffffff81055d10 | [native_send_call_func_single_ipi](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/kernel/smp.c#L134)+0x0/0x20 [kernel]
+0xffffffff8111f86f | [generic_exec_single](https://elixir.bootlin.com/linux/v4.15/source/kernel/smp.c#L141)+0x5f/0xc0 [kernel]
+0xffffffff8111f9a2 | [smp_call_function_single](https://elixir.bootlin.com/linux/v4.15/source/kernel/smp.c#L268)+0xd2/0x100 [kernel]
+0xffffffff8111fe3c | [smp_call_function_many](https://elixir.bootlin.com/linux/v4.15/source/kernel/smp.c#L403)+0x1cc/0x250 [kernel]
+0xffffffff8107982c | [native_flush_tlb_others](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L523)+0x3c/0xf0 [kernel]
+0xffffffff8107998e | [flush_tlb_mm_range](https://elixir.bootlin.com/linux/v4.15/source/arch/um/kernel/tlb.c#L527)+0xae/0x110 [kernel]
+0xffffffff81208a50 | [tlb_flush_mmu_tlbonly](https://elixir.bootlin.com/linux/v4.15/source/mm/memory.c#L242)+0x80/0xe0 [kernel]
+0xffffffff81209e1f | [arch_tlb_finish_mmu](https://elixir.bootlin.com/linux/v4.15/source/mm/memory.c#L276)+0x3f/0x80 [kernel]
+0xffffffff81209fd3 | [tlb_finish_mmu](https://elixir.bootlin.com/linux/v4.15/source/mm/memory.c#L415)+0x23/0x30 [kernel]
+0xffffffff81213c07 | [unmap_region](https://elixir.bootlin.com/linux/v4.15/source/mm/mmap.c#L2501)+0xf7/0x130 [kernel]
+0xffffffff81215d6c | [do_munmap](https://elixir.bootlin.com/linux/v4.15/source/mm/mmap.c#L2635)+0x27c/0x460 [kernel]
+0xffffffff81215fb9 | [vm_munmap](https://elixir.bootlin.com/linux/v4.15/source/mm/mmap.c#L2736)+0x69/0xb0 [kernel]
+0xffffffff81216022 | [sys_munmap](https://elixir.bootlin.com/linux/v4.15/source/include/linux/syscalls.h#L498)+0x22/0x30 [kernel]
+0xffffffff81003b34 | [do_syscall_64](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/entry/common.c#L268)+0x74/0x1b0 [kernel]
+0xffffffff81a00119 | [return_from_SYSCALL_64](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/entry/entry_64.S#L323)+0x0/0x65 [kernel]
 0x0 | ring3 to ring0 transition (user- to kernel-space) 
 0x7f0853529ab7 | [munmap](https://elixir.bootlin.com/glibc/glibc-2.27/source/malloc/memusage.c#L749)+0x7/0x30 [/lib/x86_64-linux-gnu/libc-2.27.so]
 0x55e3788866dd | main+0x180/0x243 [/home/qdlt/devel/git/tlb_shootdowns/tlb_shootdowns]
-0x7f085342fb97 | __libc_start_main+0xe7/0x1c0 [/lib/x86_64-linux-gnu/libc-2.27.so]
-0x55e378885f6a | _start+0x2a/0x30 [/home/qdlt/devel/git/tlb_shootdowns/tlb_shootdowns]
+0x7f085342fb97 | [__libc_start_main](https://elixir.bootlin.com/glibc/glibc-2.27/source/sysdeps/unix/sysv/linux/powerpc/libc-start.c#L45)+0xe7/0x1c0 [/lib/x86_64-linux-gnu/libc-2.27.so]
+0x55e378885f6a | [_start](https://elixir.bootlin.com/glibc/glibc-2.27/source/sysdeps/i386/start.S#L58)+0x2a/0x30 [/home/qdlt/devel/git/tlb_shootdowns/tlb_shootdowns]
+
+
+At the end of this backtrace an IPI gets raised (sent to target CPU via [APIC](https://en.wikipedia.org/wiki/Advanced_Programmable_Interrupt_Controller)).  
+It interrupts the victim CPU and executes the generic SMP call handler:
+
+
+Address | Function
+--- | ---
+0xffffffff81079535 | [flush_tlb_func_common.constprop.10](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L388)+0x105/0x220 [kernel]
+0xffffffff81079681 | [flush_tlb_func_remote](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L510)+0x31/0x40 [kernel]
+0xffffffff8111f76c | [flush_smp_call_function_queue](https://elixir.bootlin.com/linux/v4.15/source/kernel/smp.c#L209)+0x4c/0xf0 [kernel]
+0xffffffff81120253 | [generic_smp_call_function_single_interrupt](https://elixir.bootlin.com/linux/v4.15/source/kernel/smp.c#L190)+0x13/0x30 [kernel]
+0xffffffff81a030c6 | [smp_call_function_single_interrupt](https://elixir.bootlin.com/linux/v4.15/source/arch/m32r/kernel/smp.c#L573)+0x36/0xd0 [kernel]
+0xffffffff81a02679 | [call_function_single_interrupt](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/kernel/idt.c#L115)+0xa9/0xb0 [kernel]
+
+
+In Systemtap you can print kernel backtrace with the internal [_print_backtrace()_](https://sourceware.org/systemtap/tapsets/API-print-backtrace.html) 
+function and the user-space backtrace with [_print_ubacktrace()_](https://sourceware.org/systemtap/tapsets/API-print-ubacktrace.html)
+As easy as it seems, you will need to ensure that:
+* you're running a kernel with debug symbols
+* KASLR is disabled (you can run with nokaslr in cmdline)
+* your binary was built with -fno-omit-frame-pointer and debug symbols
+* you run stap with --ldd and -d /path/to/your/binary-with-dbg-symbols
+* your Systemtap version supports DWARF stack unwinding (stap 3.3 and above should do the trick)
 
 <cries in assembly>
 <totally makes sense if you don't think about it>
