@@ -83,7 +83,7 @@ Depending on the scenario updating the TLB can be performed by the Linux kernel 
 This is usually invoked when the kernel page tables are changed, since such translations are “global” in nature.
 
 * _void flush_tlb_mm(struct mm_struct *mm)_ - This interface flushes an entire user address space from the TLB. After running, this interface must make sure that any previous page table modifications for the address space ‘mm’ will be visible to the cpu. That is, after running, there will be no entries in the TLB for ‘mm’.
-This interface is used to handle whole address space page table operations such as what happens during fork, and exec.
+This interface is used to handle whole address space page table operations such as what happens during [fork](http://man7.org/linux/man-pages/man2/fork.2.html), and [exec](https://linux.die.net/man/3/exec).
 
 * _void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)_ - Here we are flushing a specific range of (user) virtual address translations from the TLB. After running, this interface must make sure that any previous page table modifications for the address space ‘vma->vm_mm’ in the range ‘start’ to ‘end-1’ will be visible to the cpu. That is, after running, there will be no entries in the TLB for ‘mm’ for virtual addresses in the range ‘start’ to ‘end-1’.
 The “vma” is the backing store being used for the region. Primarily, this is used for munmap() type operations.
