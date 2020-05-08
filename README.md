@@ -348,19 +348,16 @@ In Systemtap you can print kernel backtrace with the internal [_print_backtrace(
 function and the user-space backtrace with [_print_ubacktrace()_](https://sourceware.org/systemtap/tapsets/API-print-ubacktrace.html)
 As easy as it seems, you will need to ensure that:
 * you're running a kernel with debug symbols
-* [KASLR](https://lwn.net/Articles/569635/) is disabled (you can run with nokaslr in cmdline)
+* [KASLR](https://lwn.net/Articles/569635/) is disabled (you can run with nokaslr in cmdline). This is not required for recent versions of Systemtap
 * your binary was built with -fno-omit-frame-pointer and debug symbols
 * you run stap with --ldd and -d /path/to/your/binary-with-dbg-symbols
 * your Systemtap version supports stack unwinders that can handle compiled kernel and program stacks (stap 3.3 and above should do the trick for most setups)
 
 
-Generally it's a good idea to have even a minimal understanding (*cries in assembly*) of what stack unwinders are because more often then not getting a complete backtrace will be a challenging task.
-Here's some useful links:
-* [ORC unwinder](https://www.kernel.org/doc/html/latest/x86/orc-unwinder.html)
+Generally it's a good idea to have even a minimal understanding of what stack unwinders do (*cries in assembly*). More often then not getting a complete backtrace will be a challenging task.
 
-
-<cries in assembly>
-<totally makes sense if you don't think about it>
-
-
-http://localhost:3000/d/5qBo4qqWk/tlb-shootdown-analysis?tab=queries&panelId=2&edit&fullscreen&orgId=1&from=1588866384074&to=1588866391387
+Almost done here. Just a few more links to feed your TLB fetish and I'm done. Thank you for coming to my TED talk.
+* Linux docs: [TLB](https://www.kernel.org/doc/html/latest/x86/tlb.html?highlight=tlb), [cache and TLB flushing](https://www.kernel.org/doc/html/latest/core-api/cachetlb.html),
+* Systemtap: [beginner's guide](https://sourceware.org/systemtap/SystemTap_Beginners_Guide/index.html), [tutorial](https://sourceware.org/systemtap/tutorial.pdf)
+* [Brendan Gregg's website](http://www.brendangregg.com/)
+* [Absolutely brain-melting information overload in this awesome SO post](https://stackoverflow.com/a/32258855/1278647)
