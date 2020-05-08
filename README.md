@@ -266,7 +266,7 @@ VICTIM: tlb flush, reason: TLB_REMOTE_SHOOTDOWN
 
 Wow, this is what I call causing a mess. There's many more of those but this is more than enough to show that our assumptions were valid.
 BTW, you don't need to write and run a Systemtap script to check if a CPU of interest experienced any TLB-shootdowns. 
-You can monitor /proc/interrupts or use something more user-friendly like [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/) agent and plot awesome charts in [Grafana](https://grafana.com):
+You can monitor `/proc/interrupts` or use something more user-friendly like [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/) agent and plot awesome charts in [Grafana](https://grafana.com):
 
 ![alt text](img/cpu_act_02.png "")
 

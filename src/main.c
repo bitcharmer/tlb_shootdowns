@@ -20,16 +20,16 @@
 #include <numa.h>
 
 
-#define WRITER_BATCH_SIZE_KB 64 // write into this much worth of pages and capture the time
-#define REPORT_STATS_EVERY_MB 32 // every N megabytes we'll dump percentiles into our "time series"
+#define WRITER_BATCH_SIZE_KB 64                 // write into this much worth of pages and capture the time
+#define REPORT_STATS_EVERY_MB 32                // every N megabytes we'll dump percentiles into our "time series"
 
-#define PG_SIZE 4096L // only testing standard 4k pages
-#define ALLOC_SIZE 4L * 1024L * 1024L * 1024L // using 1 GB chunks
+#define PG_SIZE 4096L                           // only testing standard 4k pages
+#define ALLOC_SIZE 4L * 1024L * 1024L * 1024L   // using 4 GB chunks
 
-#define CULPRIT_CPU 22 // cpu of the thread responsible for freeing chunk A (at some point)
-#define VICTIM_CPU 23 // cpu of the thread that is expected to be impacted by the thread that does free()
+#define CULPRIT_CPU 22                          // cpu of the thread responsible for freeing chunk A (at some point)
+#define VICTIM_CPU 23                           // cpu of the thread that is expected to be impacted by the thread that does free()
 
-#define INFLUX_BUF_SIZE 1500 // fit within default MTU
+#define INFLUX_BUF_SIZE 1500                    // fit within default MTU
 
 int sockfd;
 char buf[INFLUX_BUF_SIZE];
