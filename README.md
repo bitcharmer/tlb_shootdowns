@@ -158,12 +158,13 @@ You have to clone and build it before you will be able to compile tlb_shootdowns
 Important note - measuring performance of hardware caches is extremely difficult and super easy to get wrong. This is mostly due to the timescales (of nanoseconds) 
 and the subtle character of the impact this type of interactions make.
 For that reason this exercise only makes sense if performed on a reasonably tuned system. You will need to get rid of the major sources of jitter (at least from the culprit and victim cpus) such as:
-- other user space threads
+- other user space threads (including [SMT](https://en.wikipedia.org/wiki/Simultaneous_multithreading))
 - kernel threads (rcu, workqueues, tasklets)
 - irqs
 - vm.stat_interval, any sources of sysfs or debugfs pressure
 
-On top of the above you will need to make sure you mitigate other factors that have potential to introduce too much variance like rcu storms, timer tick waves, switching c-states and p-states, watchdogs, audits, mce, etc.
+On top of the above you will need to make sure you mitigate other factors that have potential to introduce too much variance like 
+irq balancing, rcu storms, timer tick waves, [switching c-states and p-states](https://software.intel.com/content/www/us/en/develop/articles/power-management-states-p-states-c-states-and-package-c-states.html), watchdogs, audits, [MCEs](https://en.wikipedia.org/wiki/Machine-check_exception), writeback activity, etc.
 Here's the setup I used:
 
 `BOOT_IMAGE=/boot/vmlinuz-4.15.0-lowlatency root=UUID=5d18206d-fea3-44b0-bbc5-65274f690bc4 ro quiet splash vt.handoff=1 isolcpus=10,11,22,23 nohz_full=10,11,22,23 rcu_nocbs=10,11,22,23 noht nosoftlockup intel_idle.max_cstate=0 mce=ignore_ce rcu_nocb_poll audit=0 hpet=disable edd=off idle=poll processor.max_cstate=0 transparent_hugepage=never intel_pstate=disable numa_balancing=disable tsc=reliable clocksource=tsc selinux=0 nmi_watchdog=0 cpuidle.off=1 skew_tick=1 acpi_irq_nobalance pcie_aspm=performance watchdog=0 nohalt hugepages=4096 nospectre_v1 nospectre_v2 spectre_v2=off nospec_store_bypass_disable nopti pti=off nvidia-drm.modeset=1`
