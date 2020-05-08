@@ -347,7 +347,7 @@ Address | Function
 
 
 In Systemtap you can print kernel backtrace with the internal [_print_backtrace()_](https://sourceware.org/systemtap/tapsets/API-print-backtrace.html) 
-function and the user-space backtrace with [_print_ubacktrace()_](https://sourceware.org/systemtap/tapsets/API-print-ubacktrace.html)
+function and the user-space backtrace with [_print_ubacktrace()_](https://sourceware.org/systemtap/tapsets/API-print-ubacktrace.html).  
 As easy as it seems, you will need to ensure that:
 * you're running a kernel with debug symbols
 * [KASLR](https://lwn.net/Articles/569635/) is disabled (you can run with nokaslr in cmdline). This is not required for recent versions of Systemtap
@@ -358,7 +358,7 @@ As easy as it seems, you will need to ensure that:
 
 Generally it's a good idea to have even a minimal understanding of what stack unwinders do (*cries in assembly*). More often then not getting a complete backtrace will be a challenging task.
 
-Almost done here. Just a few more links to feed your TLB fetish and I'm done. Thank you for coming to my TED talk.
+I guess that's it. Just a few more links to feed your TLB fetish and I'm done. Thank you for coming to my TED talk.
 * Linux docs: [TLB](https://www.kernel.org/doc/html/latest/x86/tlb.html?highlight=tlb), [cache and TLB flushing](https://www.kernel.org/doc/html/latest/core-api/cachetlb.html),
 * Systemtap: [beginner's guide](https://sourceware.org/systemtap/SystemTap_Beginners_Guide/index.html), [tutorial](https://sourceware.org/systemtap/tutorial.pdf)
 * [Brendan Gregg's website](http://www.brendangregg.com/)
