@@ -169,10 +169,6 @@ It's got everything you can ever wish for and more.
 The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. 
 Does it show that I'm drooling?
 
-
-![alt text](img/cable.png "")  
-
-
 Brendan Gregg is the go to person when it comes to [Linux performance](http://www.brendangregg.com/); his site is an invaluable source of wisdom on the topic and you should definitely go and check it out.
 Out of the whole arsenal of available tools conveniently listed on his website, for quick and dirty analysis I often choose [Systemtap](https://sourceware.org/systemtap/wiki).     
 As the name suggests the tool taps into a well established and defined [trace points](https://www.kernel.org/doc/Documentation/trace/tracepoint-analysis.txt) in Linux kernel. 
@@ -187,6 +183,11 @@ For the list of functions you can tap into:
 `sudo stap -L 'kernel.function("*")'`
 
 The latter won't work without sudo as it needs full access to `/proc/kallsyms`.
+
+
+![alt text](img/cable.png "")  
+
+
 Before we start measuring things we need to confirm that the whole IPI nonsense does indeed happen. Systemtap is perfect for that.
 I wrote a [script](https://github.com/bitcharmer/tlb_shootdowns/blob/master/trace_ipi.stp) that does everything we need and spits out relevant details to stdout.
 So let's run it and then start our program and see what happens!
