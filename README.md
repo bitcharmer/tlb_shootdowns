@@ -3,7 +3,7 @@
 Every once in a while I involuntarily get involved in heated debates about whether reusing memory is better for performance than freeing it.  
 **TLDR**: it is. If you want to find out why read on.
 
-Now, I'm not a performance wizard like Martin Thompson or Brendan Gregg so normally I just uncritically accept whatever they have to say about pretty much anything, especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check it out later.  
+Now, I like to follow other performance specialists such as Martin Thompson or Brendan Gregg and normally I just uncritically accept whatever they have to say about pretty much anything, especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check it out later.  
 This time my peers were totally unimpressed by my convoluted explanations and as if they actually knew I had no idea what I was talking about.
 And so I was kind of forced onto this path of misery, doubt and self-loathing that some people call "doing research".
 
