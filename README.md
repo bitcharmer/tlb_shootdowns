@@ -75,7 +75,7 @@ Although simplified I found these videos a great starting point if you would lik
 Mind you, these show the world of hardware TLBs, however there are architectures that either entirely rely on TLB done in software (MIPS) or support software and hardware (SPARC v9).  
 
 We know that TLB is essentially a cache of page table entries and a very small one at that (at least compared to CPU caches). This means we have to be very careful not to mess with it too much or else we'll have to pay the price of TLB misses.  
-One such case is a full context switch when a CPU is about to execute code in an entirely different virtual address space. Depending on CPU model this will result in a "legacy" TLB flush with [_invlpg_](https://www.felixcloutier.com/x86/invlpg) instruction (ouch!) or partial entry invalidations, if you're lucky enough to have a CPU sporting that sexy _PCID_ feature ([_INVPCID_](https://www.felixcloutier.com/x86/invpcid)). If I'm not mistaken, it's been available from around Sandy Bridge onward.     
+One such case is a full context switch when a CPU is about to execute code in an entirely different virtual address space. Depending on CPU model this will result in a "legacy" TLB flush with [_invlpg_](https://www.felixcloutier.com/x86/invlpg) instruction (ouch!) or partial entry invalidations, if you're lucky enough to have a CPU sporting that neat _PCID_ feature ([_INVPCID_](https://www.felixcloutier.com/x86/invpcid)). If I'm not mistaken, it's been available from around Sandy Bridge onward.     
 But that case is easy to understand, follow and even trace. A TLB-shootdown is much more subtle and often comes from the hand of a backstabbing thread from our own process.
   
 To put the impact of TLB-assisted address translation in numbers: 
