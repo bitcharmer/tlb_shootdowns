@@ -78,7 +78,7 @@ Mind you, these show the world of hardware TLBs, however there are architectures
 We know that TLB is essentially a cache of page table entries and a very small one at that (at least compared to CPU caches). 
 This means we have to be very careful not to introduce pathological memory access patterns in our program as this would mess with the TLB and we'd have to pay the price of TLB misses.  
 
-Depending on the scenario, the CPU model and your kernel version, updating the TLB can be performed using different interfaces:
+Depending on the scenario updating the TLB can be performed by the Linux kernel using different interfaces:
 * _void flush_tlb_all(void)_ - The most severe flush of all. After this interface runs, any previous page table modification whatsoever will be visible to the cpu.
 This is usually invoked when the kernel page tables are changed, since such translations are “global” in nature.
 
