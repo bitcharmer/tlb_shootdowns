@@ -12,7 +12,7 @@ I decided to steal someone else's code from Stack Overflow and find out for myse
 Unfortunately there was nothing to steal except some academic discussions on the undesired side effects of freeing (unmapping) memory.
 
 Fun fact: the reason for associating _free()_ with _munmap()_ is that some allocations with _malloc()/calloc()_ will not use _sbrk()_ and fall back to _mmap()_ under the hood (with corresponding _munmap()_ to free memory).  
-It's really well captured in the original documentation:
+It's really well captured in the [original documentation](https://linux.die.net/man/3/malloc):
 
 > Normally, malloc() allocates memory from the heap, and adjusts the size of the heap as required, using sbrk(2). When allocating blocks of memory larger than MMAP_THRESHOLD bytes, the glibc malloc() implementation allocates the memory as a private anonymous mapping using mmap(2). MMAP_THRESHOLD is 128 kB by default, but is adjustable using mallopt(3). Allocations performed using mmap(2) are unaffected by the RLIMIT_DATA resource limit (see getrlimit(2)).
 
