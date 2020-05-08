@@ -1,15 +1,16 @@
 ## The problem
 
-Every once in a while I involuntarily get involved in heated debates about whether reusing memory is better for performance than freeing it.  
+Every once in a while I get involuntarily involved in heated debates about whether reusing memory is better for performance than freeing it.  
 **TLDR**: it is. If you want to find out why read on.
 
-Now, I like to follow other performance specialists such as Martin Thompson or Brendan Gregg and normally I just uncritically accept whatever they have to say about pretty much anything, especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check it out later.  
-This time my peers were totally unimpressed by my convoluted explanations and as if they actually knew I had no idea what I was talking about.
+Now, I like to follow other systems performance specialists such as Martin Thompson or Brendan Gregg and normally just uncritically accept whatever they have to say about pretty much anything.
+Especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check it out later.  
+This time my peers were totally unimpressed by my convoluted explanations as if they actually knew I had no idea what I was talking about.
 And so I was kind of forced onto this path of misery, doubt and self-loathing that some people call "doing research".
 
 Because I'm not the sharpest tool in the shed I take longer to learn new things and require working examples for everything. 
 I decided to steal someone else's code from Stack Overflow and find out for myself if reusing memory is more efficient than just freeing it and letting the allocator do its magic.
-Unfortunately there was nothing to steal except some academic discussions on the undesired side effects of freeing (unmapping) memory.
+Unfortunately there was nothing to steal except some academic discussions on the some side effects of freeing (unmapping) memory.
 
 Fun fact: the reason for associating _free()_ with _munmap()_ is that some allocations with _malloc()/calloc()_ will not use _sbrk()_ and fall back to _mmap()_ under the hood (with corresponding _munmap()_ to free memory).  
 It's really well captured in the [original documentation](https://linux.die.net/man/3/malloc):
@@ -74,9 +75,32 @@ Although simplified I found these videos a great starting point if you would lik
 
 Mind you, these show the world of hardware TLBs, however there are architectures that either entirely rely on TLB done in software (MIPS) or support software and hardware (SPARC v9).  
 
-We know that TLB is essentially a cache of page table entries and a very small one at that (at least compared to CPU caches). This means we have to be very careful not to mess with it too much or else we'll have to pay the price of TLB misses.  
-One such case is a full context switch when a CPU is about to execute code in an entirely different virtual address space. Depending on CPU model this will result in a "legacy" TLB flush with [_invlpg_](https://www.felixcloutier.com/x86/invlpg) instruction (ouch!) or partial entry invalidations, if you're lucky enough to have a CPU sporting that neat _PCID_ feature ([_INVPCID_](https://www.felixcloutier.com/x86/invpcid)). If I'm not mistaken, it's been available from around Sandy Bridge onward.     
-But that case is easy to understand, follow and even trace. A TLB-shootdown is much more subtle and often comes from the hand of a backstabbing thread from our own process.
+We know that TLB is essentially a cache of page table entries and a very small one at that (at least compared to CPU caches). 
+This means we have to be very careful not to introduce pathological memory access patterns in our program as this would mess with the TLB and we'd have to pay the price of TLB misses.  
+
+Depending on the scenario, the CPU model and your kernel version, updating the TLB can be performed using different interfaces:
+* _void flush_tlb_all(void)_ - The most severe flush of all. After this interface runs, any previous page table modification whatsoever will be visible to the cpu.
+This is usually invoked when the kernel page tables are changed, since such translations are “global” in nature.
+
+* _void flush_tlb_mm(struct mm_struct *mm)_ - This interface flushes an entire user address space from the TLB. After running, this interface must make sure that any previous page table modifications for the address space ‘mm’ will be visible to the cpu. That is, after running, there will be no entries in the TLB for ‘mm’.
+This interface is used to handle whole address space page table operations such as what happens during fork, and exec.
+
+* _void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)_ - Here we are flushing a specific range of (user) virtual address translations from the TLB. After running, this interface must make sure that any previous page table modifications for the address space ‘vma->vm_mm’ in the range ‘start’ to ‘end-1’ will be visible to the cpu. That is, after running, there will be no entries in the TLB for ‘mm’ for virtual addresses in the range ‘start’ to ‘end-1’.
+The “vma” is the backing store being used for the region. Primarily, this is used for munmap() type operations.
+The interface is provided in hopes that the port can find a suitably efficient method for removing multiple page sized translations from the TLB, instead of having the kernel call flush_tlb_page (see below) for each entry which may be modified.
+
+* _void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)_ - This time we need to remove the PAGE_SIZE sized translation from the TLB. The ‘vma’ is the backing structure used by Linux to keep track of mmap’d regions for a process, the address space is available via vma->vm_mm. Also, one may test (vma->vm_flags & VM_EXEC) to see if this region is executable (and thus could be in the ‘instruction TLB’ in split-tlb type setups).
+After running, this interface must make sure that any previous page table modification for address space ‘vma->vm_mm’ for user virtual address ‘addr’ will be visible to the cpu. That is, after running, there will be no entries in the TLB for ‘vma->vm_mm’ for virtual address ‘addr’.
+This is used primarily during fault processing.
+
+* _void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)_ - At the end of every page fault, this routine is invoked to tell the architecture specific code that a translation now exists at virtual address “address” for address space “vma->vm_mm”, in the software page tables.
+A port may use this information in any way it so chooses. For example, it could use this event to pre-load TLB translations for software managed TLB configurations. The sparc64 port currently does this.
+
+Invalidating ranges or individual TLB entries is also affected by your CPU's support for the _PCID_ feature (Process Context Identifier). On instruction level there are two options: there's the "legacy" [_invlpg_](https://www.felixcloutier.com/x86/invlpg) instruction used on platforms without _PCID_
+and a newer one called ([_INVPCID_](https://www.felixcloutier.com/x86/invpcid)). If I'm not mistaken, the latter has been available from around Sandy Bridge onward.
+
+A simple example of when a TLB update is required is a context switch, when the CPU is about to execute code in an entirely different virtual address space.
+But that case is easy to understand, follow and even trace. Other TLB-shootdowns may be much more subtle and often come from the hand of a backstabbing thread from our own process.
   
 To put the impact of TLB-assisted address translation in numbers: 
 - a hit takes 0.5 - 1 CPU cycle
@@ -328,6 +352,12 @@ As easy as it seems, you will need to ensure that:
 * your binary was built with -fno-omit-frame-pointer and debug symbols
 * you run stap with --ldd and -d /path/to/your/binary-with-dbg-symbols
 * your Systemtap version supports stack unwinders that can handle compiled kernel and program stacks (stap 3.3 and above should do the trick for most setups)
+
+
+Generally it's a good idea to have even a minimal understanding (*cries in assembly*) of what stack unwinders are because more often then not getting a complete backtrace will be a challenging task.
+Here's some useful links:
+* [ORC unwinder](https://www.kernel.org/doc/html/latest/x86/orc-unwinder.html)
+
 
 <cries in assembly>
 <totally makes sense if you don't think about it>
