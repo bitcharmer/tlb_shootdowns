@@ -86,7 +86,7 @@ This is usually invoked when the kernel page tables are changed, since such tran
 This interface is used to handle whole address space page table operations such as what happens during [fork](http://man7.org/linux/man-pages/man2/fork.2.html), and [exec](https://linux.die.net/man/3/exec).
 
 * _void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)_ - Here we are flushing a specific range of (user) virtual address translations from the TLB. After running, this interface must make sure that any previous page table modifications for the address space ‘vma->vm_mm’ in the range ‘start’ to ‘end-1’ will be visible to the cpu. That is, after running, there will be no entries in the TLB for ‘mm’ for virtual addresses in the range ‘start’ to ‘end-1’.
-The “vma” is the backing store being used for the region. Primarily, this is used for munmap() type operations.
+The “vma” is the backing store being used for the region. Primarily, this is used for [_munmap()_](https://linux.die.net/man/2/munmap) type operations.
 The interface is provided in hopes that the port can find a suitably efficient method for removing multiple page sized translations from the TLB, instead of having the kernel call flush_tlb_page (see below) for each entry which may be modified.
 
 * _void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)_ - This time we need to remove the PAGE_SIZE sized translation from the TLB. The ‘vma’ is the backing structure used by Linux to keep track of mmap’d regions for a process, the address space is available via vma->vm_mm. Also, one may test (vma->vm_flags & VM_EXEC) to see if this region is executable (and thus could be in the ‘instruction TLB’ in split-tlb type setups).
@@ -110,7 +110,7 @@ Now that we know everything about TLBs it's time to describe what a TLB shootdow
 
 Imagine a process with two threads running on two separate CPUs. They both allocate some memory to work with (let's call it chunk A). They later decide to allocate some more memory (chunk B). Eventually they only work on chunk B and don't need chunk A any more so one of the threads calls _free()_ to release unused memory back to the OS.
 What happens now is that the CPU which executed the _free()_ call has perfect information about valid mappings because it flushed outdated entries in its own TLB. But what about the other CPU running the other thread of the same process?
-How does it know that some virtual-to-physical mappings are not legal any more? We mustn't let it access addresses that map to physical memory that has been freed and can now belong to some completely different process, can we? I mean, that would be really bad memory coherency :)
+How does it know that some virtual-to-physical mappings are not legal any more? We mustn't let it access addresses that map to physical memory that has been freed and can now belong to some completely different process, can we? I mean, that would be really bad memory protection :)
 
 There is no such thing as [bus snooping](https://en.wikipedia.org/wiki/Bus_snooping) for TLBs so how do other CPUs in an SMP system know when and what to invalidate?
 This is where we finally get to meet Mr TLB-shootdown in person. 
@@ -121,7 +121,8 @@ In Linux kernel there's a really cool function called [smp_call_function_many](h
 So when the OS wants to tell a bunch of CPUs to immediately invalidate their TLBs it uses the _smp_call_function_many_ facility with appropriate CPU mask to invoke a dedicated function on each of the 
 qualifying CPUs: [flush_tlb_func_remote](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L510). 
 It's all nicely encapsulated in [native_flush_tlb_others](https://elixir.bootlin.com/linux/v4.15/source/arch/x86/mm/tlb.c#L520) 
-function and I strongly recommend you have a look to get a better understanding of what is really going on when this happens. 
+function and I strongly recommend you have a look to get a better understanding of what is really going on when this happens.   
+You will find relevant backtraces of this process in th [Bonus content](#bonus-content) section.
 
 If our understanding is correct, we should see an execution stall on an unsuspecting thread that's doing its own thing when suddenly it gets hit with a giant IPI hammer. How do we even measure this?
 
