@@ -206,8 +206,7 @@ Additionally, it made more sense to run the benchmark on NUMA node1 as node0 typ
 
 After setting up the environment we're finally ready to check if this whole IPI magic actually takes place as predicted.  
 
-The reason why Linux rocks and Windows does not is that to systems engineers like myself the former is like the Wünder Waffe. 
-It's got everything you can ever wish for and more.
+The reason why Linux rocks and Windows does not is that to systems engineers like myself the former is a blessing. It's got everything you can ever wish for and more.
 The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. 
 Does it show that I'm drooling?
 
