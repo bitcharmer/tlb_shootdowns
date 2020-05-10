@@ -120,8 +120,9 @@ But that case is easy to understand, follow and even trace. Other TLB-shootdowns
   
 To put the impact of TLB-assisted address translation in numbers: 
 - a hit takes 0.5 - 1 CPU cycle
-- a miss can take anywhere between 10 to even hundreds of CPU cycles. 
-
+- a miss can take anywhere between 10 to even hundreds of CPU cycles.  
+ 
+There's an interesting article on LWN on [measuring TLB performance](https://lwn.net/Articles/379748/). Although a bit outdated it's still a valuable source of TLB benchmarking methodology if you're planning on measuring TLB performance on your platform.   
 Now that we know everything about TLBs it's time to describe what a TLB shootdown is and how we can measure its impact.
 
 Imagine a process with two threads running on two separate CPUs. They both allocate some memory to work with (let's call it chunk A). They later decide to allocate some more memory (chunk B). Eventually they only work on chunk B and don't need chunk A any more so one of the threads calls _free()_ to release unused memory back to the OS.
