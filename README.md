@@ -52,8 +52,7 @@ So why don't we see this happening? Enter the [TLB](https://en.wikipedia.org/wik
 Just like CPU caches data residing in RAM, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page table every single time the CPU needs to do anything (btw, this process is called page walk).
 Nowadays, on x86 there are separate TLBs for data (dTLB) and instructions (iTLB). What's more - just like CPU caches - they are divided into access levels.
 
-For example, here's how TLB is organized on Skylake:
-
+For example, here's how TLB is organized on Skylake:  
 Skylake TLB consists of dedicated L1 TLB for instruction cache (ITLB) and another one for data cache (DTLB). Additionally there is a unified L2 TLB (STLB).
 
 * ITLB
