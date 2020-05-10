@@ -1,10 +1,12 @@
 ## The problem
 
 Every once in a while I get involuntarily involved in heated debates about whether reusing memory is better for performance than freeing it.  
-**TLDR**: it is. If you want to find out why read on.
+**TLDR**: it is. If you want to find out why read on. Also, read on if your application maintains a transaction log or writes events to a journal.
 
 Now, I like to follow other systems performance specialists such as Martin Thompson or Brendan Gregg and normally just uncritically accept whatever they have to say about pretty much anything.
 Especially when they talk about [CPU caches](https://en.wikipedia.org/wiki/CPU_cache), TLB misses or invoke other terms that I always acknowledge with nervous laugh while noting it down to check it out later.  
+From people like them I learned that there is general consensus among the low-latency crowd that de-allocating memory should be avoided. 
+At least that's how I remembered it along with a really foggy super-hardcore low-level description of the reason behind this conviction. 
 This time my peers were totally unimpressed by my convoluted explanations as if they actually knew I had no idea what I was talking about.
 And so I was kind of forced onto this path of misery, doubt and self-loathing that some people call "doing research".
 
