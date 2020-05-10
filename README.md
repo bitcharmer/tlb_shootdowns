@@ -1,6 +1,7 @@
 ## The problem
 
-Every once in a while I get involuntarily involved in heated debates about whether reusing memory is better for performance than freeing it.  
+Every once in a while I get involuntarily involved in heated debates about whether reusing memory is better for performance than freeing it.
+  
 **TLDR**: it is. If you want to find out why read on. Also, read on if your application maintains a transaction log or writes events to a journal.
 
 Now, I like to follow other systems performance specialists such as Martin Thompson or Brendan Gregg and normally just uncritically accept whatever they have to say about pretty much anything.
