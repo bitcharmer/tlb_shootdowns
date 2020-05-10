@@ -396,11 +396,3 @@ I guess that's it. Just a few more links to feed your TLB fetish and I'm done. T
 * [Brendan Gregg's website](http://www.brendangregg.com/)
 * [Absolutely brain-melting information overload in this awesome SO post](https://stackoverflow.com/a/32258855/1278647)
 
-
-select min, mean, p50, p90, p99, max from tlb_test where time > 1588866386458000000 and time < 1588866386462000000
-name: tlb_test
-time                min mean  p50 p90 p99 max
-----                --- ----  --- --- --- ---
-1588866386460047713 64  70.98 67  85  97  129
-
-
