@@ -395,5 +395,8 @@ I guess that's it. Just a few more links to feed your TLB fetish and I'm done. T
 * Systemtap: [beginner's guide](https://sourceware.org/systemtap/SystemTap_Beginners_Guide/index.html), [tutorial](https://sourceware.org/systemtap/tutorial.pdf)
 * [Brendan Gregg's website](http://www.brendangregg.com/)
 * [Absolutely brain-melting information overload in this awesome SO post](https://stackoverflow.com/a/32258855/1278647)
+* [A Look at Several Memory Management Units,
+   TLB-Refill Mechanisms, and Page Table Organizations](https://user.eng.umd.edu/~blj/papers/asplos98.pdf)
+   
 
 Huge thanks to Peter Windle for being my editor and helping me structure this article so people would actually read it.
