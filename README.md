@@ -295,9 +295,17 @@ It went from this nice and steady latency profile to a substantial slow-down whi
 BTW, the vertical lines on the graph are markers for the exact time the culprit thread called _free()_ (blue - just before, purple - just after), 
 so this is just an extra confirmation that we're looking at the actual time frame of interest.  
 
+Some raw numbers:
+```
+                        min   mean    p50   p90   p99   max
+                        ---   ----    ---   ---   ---   ---
+Normal case             64    70.98   67    85    97    129
+TLB shootdown           64    72      68    85    98    293
+```
+
 But it's even worse than it looks on this graph. 
 It's important to remember that we can't perceive these results as just some individual writes getting slowed down. That would be quite inaccurate 
-(but sadly common) way of looking at a latency benchmark and an epitome of [coordinated omission](https://news.ycombinator.com/item?id=10486215).  
+(but sadly common) way of looking at a latency benchmark and an epitome of [coordinated omission](https://news.ycombinator.com/item?id=10486215) (a term coined by Azul's CTO - Gil Tene).  
 This is a [great example](https://medium.com/@siddontang/the-coordinated-omission-problem-in-the-benchmark-tools-5d9abef79279) of how it works:
 
 >For example, I go to KFC to buy fried chicken (Em, this is not an advertisement, I just like KFC), and fall in the end of a line. There are three people in front of me. The first two people both use 30 seconds to buy their foods, but the third one uses nearly 300 seconds. Finally it is my turn and I use 30 seconds too. So for me, my total time to buy the fried chicken is 390 seconds (2 x 30 + 300 + 30), not only 30 seconds. 30 is the service time for me, and 360 is the waiting time. Maybe you have already noticed the problem, most of the benchmark tools use the service time to represent the latency, but not include the waiting time
@@ -370,3 +378,12 @@ I guess that's it. Just a few more links to feed your TLB fetish and I'm done. T
 * Systemtap: [beginner's guide](https://sourceware.org/systemtap/SystemTap_Beginners_Guide/index.html), [tutorial](https://sourceware.org/systemtap/tutorial.pdf)
 * [Brendan Gregg's website](http://www.brendangregg.com/)
 * [Absolutely brain-melting information overload in this awesome SO post](https://stackoverflow.com/a/32258855/1278647)
+
+
+select min, mean, p50, p90, p99, max from tlb_test where time > 1588866386458000000 and time < 1588866386462000000
+name: tlb_test
+time                min mean  p50 p90 p99 max
+----                --- ----  --- --- --- ---
+1588866386460047713 64  70.98 67  85  97  129
+
+
