@@ -51,14 +51,29 @@ So why don't we see this happening? Enter the [TLB](https://en.wikipedia.org/wik
 
 Just like CPU caches data residing in RAM, the TLB caches the virtual-to-physical address mappings so we don't have to go through the pain of inspecting page table every single time the CPU needs to do anything (btw, this process is called page walk).
 Nowadays, on x86 there are separate TLBs for data (dTLB) and instructions (iTLB). What's more - just like CPU caches - they are divided into access levels.
-For example Intel's Xeon E5-2689 v4 [has 5 TLB caches](http://www.cpu-world.com/CPUs/Xeon/Intel-Xeon%20E5-2689.html):
-* Data TLB0: 2-MB or 4-MB pages, 4-way set associative, 32 entries
-* Data TLB: 4-KB Pages, 4-way set associative, 64 entries
-* Instruction TLB: 4-KB pages, 4-way set associative, 64 entries
-* L2 TLB: 1-MB, 4-way set associative, 64-byte line size
-* Shared 2nd-level TLB: 4 KB pages, 4-way set associative, 512 entries 
 
+For example, here's how TLB is organized on Skylake:
+
+Skylake TLB consists of dedicated L1 TLB for instruction cache (ITLB) and another one for data cache (DTLB). Additionally there is a unified L2 TLB (STLB).
+
+* ITLB
+  * 4 KiB page translations: 128 entries; 8-way set associative; dynamic partitioning
+  * 2 MiB / 4 MiB page translations: 8 entries per thread; fully associative, duplicated for each thread
+* DTLB
+  * 4 KiB page translations: 64 entries; 4-way set associative, fixed partition
+  * 2 MiB / 4 MiB page translations: 32 entries; 4-way set associative, fixed partition
+  * 1G page translations: 4 entries; 4-way set associative, fixed partition
+* STLB
+  * 4 KiB + 2 MiB page translations: 1536 entries; 12-way set associative, fixed partition
+  * 1 GiB page translations: 16 entries; 4-way set associative, fixed partition
+
+And here's a helpful diagram of Intel's Skylake architecture including the TLBs:
+
+![alt text](img/skylake.png "")  
+
+ 
 Fun fact: the first hardware cache used in a computer system was not actually a data or instruction cache, [but rather a TLB](http://www.chilton-computing.org.uk/acl/technology/atlas/p019.htm).  
+
 To make things more interesting there are 4 types of CPU caches that interact with TLB differently:
 * Physically indexed, physically tagged (PIPT) caches use the physical address for both the index and the tag. While this is simple and avoids problems with aliasing, it is also slow, as the physical address must be looked up (which could involve a TLB miss and access to main memory) before that address can be looked up in the cache.
 * Virtually indexed, virtually tagged (VIVT) caches use the virtual address for both the index and the tag. This is a pretty dodgy scheme, not used broadly due to its problems with aliasing (multiple virtual addresses pointing to the same physical address) causing coherency challenges or homonyms where the same virtual address maps to several different physical addresses. 
