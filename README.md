@@ -190,7 +190,7 @@ Additionally, it made more sense to run the benchmark on NUMA node1 as node0 typ
 
 After setting up the environment we're finally ready to check if this whole IPI magic actually takes place as predicted.  
 
-The reason why Windows sucks and Linux rocks is that to systems engineers like myself it's like the Wünder Waffe. 
+The reason why Linux rocks and Windows does not is that to systems engineers like myself the former is like the Wünder Waffe. 
 It's got everything you can ever wish for and more.
 The level of introspection into the kernel that's available, tracing, profiling, custom probes, advanced tooling is just stupidly awesome. 
 Does it show that I'm drooling?
@@ -290,16 +290,23 @@ on the affected CPU:
 
 ![alt text](img/shootdown.png "")   
 
-The vertical lines are markers for the exact time the culprit thread called _free()_ (blue - just before, purple - just after), 
+WOW, look at that mess! It's a two-fold increase in write latency. 
+It went from this nice and steady latency profile to a substantial slow-down while the OS was performing routines to reclaim memory safely and coherently.   
+BTW, the vertical lines on the graph are markers for the exact time the culprit thread called _free()_ (blue - just before, purple - just after), 
 so this is just an extra confirmation that we're looking at the actual time frame of interest.  
 
+But it's even worse than it looks on this graph. 
+It's important to remember that we can't perceive these results as just some individual writes getting slowed down. That would be quite inaccurate 
+(but sadly common) way of looking at a latency benchmark and an epitome of [coordinated omission](https://news.ycombinator.com/item?id=10486215).  
+This is a [great example](https://medium.com/@siddontang/the-coordinated-omission-problem-in-the-benchmark-tools-5d9abef79279) of how it works:
 
-For most applications execution stalls like this don't matter much as they don't have strict performance requirements. 
-However for programs that are expected to operate in low- and ultra-low latency regime this may be a serious issue. 
-I've worked on quite a few systems that employed either pure in-mem buffers/arenas or used file-backed mapped memory.
-Large journal files may be a potential problem for operations and maintenance. Because of that there was always some pressure on unmapping and removing them.
-The resulting debates on the consequences of releasing memory were not uncommon; I hope this material gave you a better understanding of the nature of this issue.
+>For example, I go to KFC to buy fried chicken (Em, this is not an advertisement, I just like KFC), and fall in the end of a line. There are three people in front of me. The first two people both use 30 seconds to buy their foods, but the third one uses nearly 300 seconds. Finally it is my turn and I use 30 seconds too. So for me, my total time to buy the fried chicken is 390 seconds (2 x 30 + 300 + 30), not only 30 seconds. 30 is the service time for me, and 360 is the waiting time. Maybe you have already noticed the problem, most of the benchmark tools use the service time to represent the latency, but not include the waiting time
 
+So what this means is every single write that followed one of those spikes was delayed by this much. Worse even, subsequent spikes will just add up to already terrible queueing effects and delay next writes even more.
+There are whole domains where low-latency data-processing or message-passing is of paramount importance.  
+Some applications will give you really bad gaming experience if this happens, others might loose you money on financial markets, another one will announce 
+its failure in a spectacular ball of wire when a rocket fails to correct its course on time.
+ 
 
 ## Bonus content
 
